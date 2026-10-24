@@ -1,0 +1,22 @@
+# Game Design
+
+You are a zookeeper at Willow Creek Wildlife Park, not its owner. The zoo already exists; you explore it, care for animals, maintain habitats, help staff and uncover the stories left behind by retired head keeper Margaret Holloway.
+
+## Five pillars
+1. Animals with personalities (each animal is an individual).
+2. A zoo that remembers (history of meaningful events).
+3. Hands-on zookeeping (carry, clean, feed, mow, row).
+4. Stories that emerge from gameplay.
+5. A cozy world with meaningful choices.
+
+## Status
+Only the foundation (Milestone 1) exists: walking around the park, signs, one discoverable note. Everything else follows the milestone order in [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md).
+
+## Cast (planned)
+Margaret Holloway (retired head keeper), Daniel Brooks (senior keeper), Dr. Priya Shah (vet), Maya Chen (groundskeeper), Leo Martinez (maintenance).
+
+## Story chapters (planned)
+1. The First Shift 2. Buster Remembers 3. A New Arrival 4. The Storm 5. New Life 6. Margaret's Last Letter. Chapter 1 is built first; the narrative system will be data-driven so chapters can be added.
+
+## Procedural generation
+The park is generated from a seed. Today the important structure is fixed and the seed varies decoration; later milestones add multiple habitats and validation (with a fallback map). Each map is checked for reachability by tests.
