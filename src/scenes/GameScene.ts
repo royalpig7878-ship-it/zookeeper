@@ -543,9 +543,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyZoom() {
-    const h = this.scale.height;
+    const { width, height: h } = this.scale;
     const zoom = Math.max(1, Math.round(h / (TILE * 12)));
-    this.cameras.main.setZoom(h < 300 ? 1 : Math.min(zoom, CAMERA_ZOOM + 1));
+    // Held upright on a phone the screen is narrow, so show more of the park: zoom out a little.
+    const portraitPhone = h > width && width < 600;
+    this.cameras.main.setZoom(portraitPhone ? 1.5 : h < 300 ? 1 : Math.min(zoom, CAMERA_ZOOM + 1));
   }
 
   // ------------------------------------------------------------ per frame

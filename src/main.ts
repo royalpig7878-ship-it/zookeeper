@@ -79,6 +79,8 @@ function keepFitted(game: Phaser.Game) {
       gameBox.style.height = `${h}px`;
     }
     if (Math.round(game.scale.width) !== w || Math.round(game.scale.height) !== h) game.scale.resize(w, h);
+    // Touch positions are worked out from where the canvas sits on the page, so refresh that every time.
+    game.scale.updateBounds();
   };
   const soon = () => {
     fit();

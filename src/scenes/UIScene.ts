@@ -202,7 +202,7 @@ export class UIScene extends Phaser.Scene {
     const sf = this.safe;
     const big = settings.get().bigControls;
     const lefty = settings.get().leftHanded;
-    this.restStick();
+    if (this.stickPointerId === null) this.restStick(); // never drop a finger that is already on the joystick
     // The action button goes on the side away from the joystick, and both stay out of the notch and corners.
     this.actionBtn.setScale(big ? 1.25 : 1);
     this.actionBtn.setPosition(lefty ? m + sf.left + 90 * (big ? 1.25 : 1) : width - m - sf.right - 90 * (big ? 1.25 : 1), height - m - sf.bottom - 50 * (big ? 1.25 : 1));
