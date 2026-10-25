@@ -23,8 +23,12 @@ import { MessSpots, Pile, countKind, initialPiles, spawnOvernight, validPiles } 
 import { Clock, SHIFT_END, advanceClock, daylight, formatTime, newClock, phaseOf, startNextDay } from '../systems/clock';
 import { History, ZooEvent, newHistory, photosUnlockedBy, recordEvent } from '../systems/history';
 import { INVENTORY_SLOTS, Slot, addItem, countItem, hasItem, removeItem, roomFor } from '../systems/inventory';
-import { bagSheet, enrichSheet, historySheet, recipesSheet, reportSheet, shedSheet, storeSheet } from '../systems/sheets';
+import { bagSheet, clinicSheet, enrichSheet, historySheet, medicalSheet, recipesSheet, reportSheet, shedSheet, storeSheet } from '../systems/sheets';
 import { TaskEvent, TaskState, applyTaskEvent, createTasks, summary } from '../systems/tasks';
+import {
+  Candidate, DayCare, MedicalCase, MedicalState, activeCases, caseFor, collectMedicine, defOf, endOfDay, examine, giveDose,
+  markArrived, maybeStartCase, newMedical, readyForCheck, recordSymptoms, recoveryCheck, reportToVet, statusLine, visitDue,
+} from '../systems/medical';
 import { HabitatInfo, InteractAction, Interactable, Terrain, ZooLayout, buildZoo, tileCenter } from '../world/layout';
 import { collides, moveWithCollision, nearestWithin } from '../world/movement';
 import type { SheetData } from '../ui/sheet';
@@ -115,6 +119,16 @@ export class GameScene extends Phaser.Scene {
   private history: History = newHistory();
   private flags = new Set<string>();
 
+  // veterinary care
+  private medical: MedicalState = newMedical();
+  /** habitats where the keeper filled the feeder / put out enrichment today */
+  private fedToday = new Set<string>();
+  private enrichedToday = new Set<string>();
+  /** animals showing signs of a problem nobody has treated yet (they get a bubble) */
+  private sickIds = new Set<string>();
+  private vetView: Phaser.GameObjects.Image | null = null;
+  private vetSpot: Interactable | null = null;
+
   // groundskeeping
   /** how the keeper is moving: on foot, on the mower, or in the boat */
   private mode: 'walk' | 'mower' | 'boat' = 'walk';
@@ -144,6 +158,12 @@ export class GameScene extends Phaser.Scene {
     this.history = data.save?.history ?? newHistory();
     this.flags = new Set(data.save?.flags ?? []);
     this.sinceSave = 0;
+    this.medical = data.save?.medical ? JSON.parse(JSON.stringify(data.save.medical)) : newMedical();
+    this.fedToday = new Set();
+    this.enrichedToday = new Set();
+    this.sickIds = new Set();
+    this.vetView = null;
+    this.vetSpot = null;
     this.animals = [];
     this.habitats = new Map();
     this.nearby = undefined;
@@ -185,6 +205,7 @@ export class GameScene extends Phaser.Scene {
     this.createStations();
     this.createWorkday();
     this.createAnimals();
+    this.syncMedical();
     this.createPlayer();
 
     const cam = this.cameras.main;
@@ -402,7 +423,7 @@ export class GameScene extends Phaser.Scene {
     // things already picked up stop being interactable
     const base = this.layoutData.interactables.filter((i) => !(i.id === 'photo-old' && this.discovered.has('photo-old')));
     // Jobs come first, so a job on the same tile as a bench or sign (a loose bench) wins the tie.
-    this.interactables = [...land.map(toItem), ...base];
+    this.interactables = [...(this.vetSpot ? [this.vetSpot] : []), ...land.map(toItem), ...base];
     this.waterChores = water.map(toItem);
     // Each habitat feels the mess in its own corner.
     for (const h of this.habitats.values()) {
@@ -558,6 +579,7 @@ export class GameScene extends Phaser.Scene {
     this.updateEnrichmentViews();
     this.refreshStationArt();
     this.tickClock(dt);
+    for (const c of this.medical.cases) if (visitDue(c, this.clock.day, this.clock.minutes)) this.vetArrives(c);
     this.updateContext();
 
     if (this.inspecting) {
@@ -800,6 +822,7 @@ export class GameScene extends Phaser.Scene {
     if (a.activity === 'sleeping') icon = 'bubble_sleep';
     else if (a.needs.thirst >= s.thresholds.urgent) icon = 'bubble_water';
     else if (a.needs.hunger >= s.thresholds.urgent) icon = 'bubble_food';
+    else if (this.sickIds.has(a.id)) icon = 'bubble_sick';
     else if (a.needs.energy <= s.thresholds.tired) icon = 'bubble_sleep';
     if (icon && a.activity !== 'eating' && a.activity !== 'drinking') {
       view.bubble.setTexture(icon).setVisible(true).setPosition(a.x + (a.facing === 'left' ? -10 : 10), a.y - s.sprite.footY - 14);
@@ -981,6 +1004,8 @@ export class GameScene extends Phaser.Scene {
       case 'enrich': return this.actEnrich(it.habitat ?? 'elephant');
       case 'pile': return this.actPile(it.id);
       case 'enter': return this.enterStaffRoom();
+      case 'clinic': return this.game.events.emit('ui:sheet', clinicSheet(this.medical, this.animalNames()));
+      case 'vetvisit': return this.assistVet();
       default: return;
     }
   }
@@ -1086,6 +1111,7 @@ export class GameScene extends Phaser.Scene {
           text: `You prepared ${subject === first.name ? `${first.name}'s` : `the ${species.group}'`} first meal and filled the feeder.`,
         });
       }
+      this.fedToday.add(habitatId);
       this.bondHabitat(habitatId, habitatId === 'elephant' ? 3 : 2);
       this.taskEvent(habitatId === 'elephant' ? 'feeder-filled' : `fed:${habitatId}`);
     });
@@ -1139,6 +1165,7 @@ export class GameScene extends Phaser.Scene {
         ty = this.animalRng.int(b.y0 + 1, b.y1 - 3);
       }
       this.placeEnrichment(rt, { item, x: tileCenter(tx), y: tileCenter(ty), interest: 100 });
+      this.enrichedToday.add(habitatId);
       this.toast(`The ${rt.species.group} have something new`);
       this.save(false);
     });
@@ -1236,6 +1263,9 @@ export class GameScene extends Phaser.Scene {
     }
     this.pushInspect(view);
     this.taskEvent('animal-inspected');
+    const sick = caseFor(this.medical, a.id);
+    if (sick?.stage === 'early') this.toast(`Something seems wrong with ${a.name}. Tap Health.`);
+    else if (sick && readyForCheck(sick)) this.toast(`${a.name} looks well again. Tap Health for a recovery check.`);
   }
 
   private pushInspect(view: AnimalView) {
@@ -1243,6 +1273,7 @@ export class GameScene extends Phaser.Scene {
     const a = view.state;
     const s = SPECIES[a.speciesId];
     const n = a.needs;
+    const sick = caseFor(this.medical, a.id);
     const col = (g: number) => ({ good: 0x5fae70, fair: 0xe0b840, poor: 0xd8553f })[levelOf(g)];
     const data: InspectData = {
       name: a.name,
@@ -1256,26 +1287,29 @@ export class GameScene extends Phaser.Scene {
         { label: 'Health', value: n.health, color: col(n.health) },
         { label: 'Bond', value: a.memory.familiarity, color: 0xd88ab8 },
       ],
-      tips: careAdvice(a, this.habitats.get(a.habitatId)!.world).slice(0, 2),
+      tips: sick ? [statusLine(sick, a.name), ...(sick.stage === 'treating' ? [defOf(sick).care.text] : defOf(sick).symptoms.slice(0, 2))] : careAdvice(a, this.habitats.get(a.habitatId)!.world).slice(0, 2),
       traits: a.traits.map((t) => TRAITS[t].label.toLowerCase()),
+      vet: sick ? 'Health' : undefined,
     };
     this.game.events.emit('ui:inspect', data);
   }
 
   // ------------------------------------------------------------ sheets: report, bag, history
-  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'history') {
+  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'history' | 'medical') {
     if (this.registry.get('modal') || this.transitioning || this.job) return;
     this.inspecting = null;
     if (kind === 'bag') this.game.events.emit('ui:sheet', bagSheet(this.inventory));
+    else if (kind === 'medical') this.openMedical();
     else if (kind === 'history') {
       const view = this.lastInspected ?? this.buster;
       if (view) {
         const names = Object.fromEntries(this.animals.map((v) => [v.state.id, v.state.name]));
-        this.game.events.emit('ui:sheet', historySheet(view.state, this.history, names));
+        this.game.events.emit('ui:sheet', historySheet(view.state, this.history, names, this.medical.cases));
       }
     } else {
       const title = kind === 'report' ? `Morning Report - Day ${this.clock.day}` : undefined;
-      this.game.events.emit('ui:sheet', reportSheet(this.tasks, this.clock, title));
+      const names = this.animalNames();
+      this.game.events.emit('ui:sheet', reportSheet(this.tasks, this.clock, title, [], activeCases(this.medical).map((c) => statusLine(c, names[c.animalId] ?? 'An animal'))));
     }
   }
 
@@ -1301,6 +1335,17 @@ export class GameScene extends Phaser.Scene {
           const [, habitat, item] = id.split(':');
           this.placeItem(habitat, item);
         }
+      });
+      return;
+    }
+    if (id.startsWith('vet-') || id.startsWith('med-')) {
+      this.game.events.emit('ui:sheet-close');
+      this.time.delayedCall(60, () => {
+        if (id.startsWith('vet-report:')) this.reportCase(id.slice(11));
+        else if (id.startsWith('vet-collect:')) this.collectCase(id.slice(12));
+        else if (id === 'med-record') this.recordCase();
+        else if (id === 'med-dose') this.doseCase();
+        else if (id === 'med-check') this.checkCase();
       });
       return;
     }
@@ -1356,6 +1401,7 @@ export class GameScene extends Phaser.Scene {
           this.record({ category: 'care', animalId: rt.info.id === 'elephant' ? 'buster' : undefined, key: `thirsty-night-${rt.info.id}-${day}`, text: `The water trough was empty overnight and ${who} went to bed thirsty.` });
         }
       }
+      const vetLines = this.medicalOvernight(day);
       const returned = this.collectEnrichment();
       if (returned.length > 0) lines.push(`Staff collected the enrichment items (${returned.join(', ')}). They are back in your bag.`);
 
@@ -1397,6 +1443,13 @@ export class GameScene extends Phaser.Scene {
       this.emitTime(true);
       this.game.events.emit('ui:daylight', daylight(this.clock.minutes));
 
+      const started = this.maybeNewCase();
+      if (started) vetLines.push(started);
+      this.fedToday.clear();
+      this.enrichedToday.clear();
+      this.syncMedical();
+      if (vetLines.length) lines.push('#VET CARE', ...vetLines);
+
       lines.push('#TOMORROW');
       lines.push(`New mess overnight: ${newDung} waste, ${newLeaves} leaf piles.`);
       if (regrown.length > 0) lines.push(`Some of the lawn has grown back (${regrown.length} patches). The mower is fully charged.`);
@@ -1411,6 +1464,194 @@ export class GameScene extends Phaser.Scene {
         buttons: [{ id: 'start-day', label: `Start Day ${this.clock.day}`, color: 0x3f8f58 }],
       } satisfies SheetData);
     });
+  }
+
+  // ------------------------------------------------------------ veterinary care
+  private animalNames(): Record<string, string> {
+    return Object.fromEntries(this.animals.map((v) => [v.state.id, v.state.name]));
+  }
+
+  private viewOf(id: string) {
+    return this.animals.find((v) => v.state.id === id);
+  }
+
+  /** Make the animals and the vet match the medical records (after loading, and after every change). */
+  private syncMedical() {
+    this.sickIds.clear();
+    for (const v of this.animals) {
+      const c = caseFor(this.medical, v.state.id);
+      // Once the care is done and they look well again, the symptoms ease off.
+      v.state.condition = c && !readyForCheck(c) ? c.condition : undefined;
+      if (c && c.stage !== 'treating') this.sickIds.add(v.state.id);
+    }
+    this.vetView?.destroy();
+    this.vetView = null;
+    this.vetSpot = null;
+    const visit = this.medical.cases.find((c) => c.stage === 'reported' && c.visit?.arrived && c.visit.day === this.clock.day);
+    const gate = visit && this.layoutData.interactables.find((i) => i.action === 'enrich' && i.habitat === visit.habitatId);
+    if (visit && gate) {
+      const x = tileCenter(gate.x) + 16;
+      const y = tileCenter(gate.y) + 10;
+      this.vetView = this.add.image(x, y, 'player_down_0').setOrigin(0.5, 44 / 48).setTint(0xcfe0ff).setDepth(y);
+      this.vetSpot = { id: 'vet-visit', x: gate.x, y: gate.y, label: 'ASSIST DR. SHAH', title: '', text: [], action: 'vetvisit', range: 80, habitat: visit.habitatId };
+    }
+    if (this.piles) this.rebuildInteractables();
+  }
+
+  private caseName(c: MedicalCase) {
+    return this.viewOf(c.animalId)?.state.name ?? 'The animal';
+  }
+
+  private vetArrives(c: MedicalCase) {
+    markArrived(c);
+    this.syncMedical();
+    this.toast(`Dr. Shah has arrived at ${this.caseName(c)}'s habitat gate. Go and help her.`);
+    this.save(false);
+  }
+
+  private openMedical() {
+    const view = this.lastInspected;
+    const c = view && caseFor(this.medical, view.state.id);
+    if (!view || !c) return;
+    const rt = this.habitats.get(view.state.habitatId)!;
+    this.game.events.emit('ui:sheet', medicalSheet(c, view.state.name, this.clock.day, hasItem(this.inventory, 'notebook'), hasItem(this.inventory, 'medicine'), rt.food.amount > 0));
+  }
+
+  /** The keeper writes down what they have seen. */
+  private recordCase() {
+    const c = this.lastInspected && caseFor(this.medical, this.lastInspected.state.id);
+    if (!c || !hasItem(this.inventory, 'notebook') || !recordSymptoms(c, this.clock.day)) return;
+    const name = this.caseName(c);
+    this.record({ category: 'care', animalId: c.animalId, key: `${c.id}-recorded`, text: `You noticed ${name} was unwell (${defOf(c).hint}) and recorded the symptoms.` });
+    this.toast('Symptoms recorded. Report them at the vet clinic.');
+    this.syncMedical();
+    this.save(false);
+  }
+
+  private reportCase(id: string) {
+    const c = this.medical.cases.find((x) => x.id === id);
+    if (!c || !reportToVet(c, this.clock.day, this.clock.minutes)) return;
+    const name = this.caseName(c);
+    this.record({ category: 'care', animalId: c.animalId, key: `${c.id}-reported`, text: `You reported ${name}'s symptoms to Dr. Shah.` });
+    const when = c.visit!.day === this.clock.day ? `at ${formatTime(c.visit!.minutes)} today` : 'first thing tomorrow';
+    this.say('Dr. Shah', `"Thank you for telling me. I will come and see ${name} ${when}."`, 'When she arrives she will be at the habitat gate. Be there to help with the examination.');
+    this.syncMedical();
+    this.save(false);
+  }
+
+  /** Dr. Shah arrives and the keeper helps with the examination. */
+  private assistVet() {
+    const c = this.medical.cases.find((x) => x.stage === 'reported' && x.visit?.arrived && x.visit.day === this.clock.day);
+    if (!c) return;
+    this.startJob('Helping Dr. Shah...', 3, () => {
+      if (!examine(c, this.clock.day, true)) return;
+      this.finishExam(c, true);
+    });
+  }
+
+  private finishExam(c: MedicalCase, assisted: boolean) {
+    const name = this.caseName(c);
+    const d = defOf(c);
+    this.record({ category: 'care', animalId: c.animalId, key: `${c.id}-examined`, text: `Dr. Shah examined ${name}${assisted ? ' with your help' : ''}: ${d.name.toLowerCase()}.` });
+    this.syncMedical();
+    if (assisted) {
+      this.say('Dr. Shah', `"${d.finding}"`,
+        d.medicine ? `Prescription: ${d.medicine.name}, one dose a day for ${d.medicine.doses} days. Collect it at the clinic, then add it to the feed.` : 'No medicine is needed.',
+        `Care plan: ${d.care.text}`);
+    }
+    this.save(false);
+  }
+
+  private collectCase(id: string) {
+    const c = this.medical.cases.find((x) => x.id === id);
+    if (!c || c.stage !== 'examined') return;
+    if (roomFor(this.inventory, 'medicine') < c.dosesNeeded) return this.say('Bag full', 'You need room in your bag for the medicine. Put something down first.');
+    addItem(this.inventory, 'medicine', c.dosesNeeded);
+    collectMedicine(c, this.clock.day);
+    this.record({ category: 'care', animalId: c.animalId, key: `${c.id}-medicine`, text: `You collected ${this.caseName(c)}'s medicine from the clinic.` });
+    this.say('Dr. Shah', `"One dose a day, mixed into ${this.caseName(c)}'s food. Fill the feeder, then use Health on the inspect panel."`, `Care plan: ${defOf(c).care.text}`);
+    this.syncMedical();
+    this.save(false);
+  }
+
+  /** Add today's dose to the feeder. */
+  private doseCase() {
+    const view = this.lastInspected;
+    const c = view && caseFor(this.medical, view.state.id);
+    if (!view || !c || !hasItem(this.inventory, 'medicine')) return;
+    if ((this.habitats.get(c.habitatId)?.food.amount ?? 0) <= 0) return this.say('Medicine', 'The medicine goes in the food. Fill the feeder first.');
+    this.startJob('Mixing medicine into the feed...', 2, () => {
+      if (!giveDose(c, this.clock.day) || !removeItem(this.inventory, 'medicine', 1)) return;
+      this.toast(`Dose ${c.dosesGiven} of ${c.dosesNeeded} given`);
+      if (c.dosesGiven >= c.dosesNeeded) this.record({ category: 'care', animalId: c.animalId, key: `${c.id}-doses`, text: `${this.caseName(c)} had the last dose of ${defOf(c).medicine?.name.toLowerCase()}.` });
+      this.bond(view, 1);
+      this.syncMedical();
+      this.save(false);
+    });
+  }
+
+  private checkCase() {
+    const view = this.lastInspected;
+    const c = view && caseFor(this.medical, view.state.id);
+    if (!view || !c || !recoveryCheck(c, this.clock.day)) return;
+    const name = view.state.name;
+    this.record({ category: 'milestone', animalId: c.animalId, key: `${c.id}-recovered`, text: `${name} recovered from ${defOf(c).name.toLowerCase()}. You did the recovery check yourself.` });
+    this.bond(view, 3);
+    this.say('Recovery check', `You check ${name} over. Bright eyes, a good appetite, walking easily.`, `${name} has recovered from ${defOf(c).name.toLowerCase()}. Dr. Shah will note it in the records.`);
+    this.syncMedical();
+    this.save(false);
+  }
+
+  /** What the keeper did for a habitat today, as the medical rules see it. */
+  private careToday(habitatId: string): DayCare {
+    const rt = this.habitats.get(habitatId)!;
+    return {
+      fed: this.fedToday.has(habitatId) || rt.food.amount >= 30,
+      clean: (rt.world.dirt ?? 0) <= 2,
+      enriched: this.enrichedToday.has(habitatId),
+      quiet: !this.enrichedToday.has(habitatId),
+    };
+  }
+
+  /** The night's medical bookkeeping for cases already open. Returns lines for the report. */
+  private medicalOvernight(day: number): string[] {
+    const lines: string[] = [];
+    for (const c of activeCases(this.medical)) {
+      const name = this.caseName(c);
+      if (c.stage === 'reported' && c.visit?.arrived && c.visit.day === day) {
+        examine(c, day, false);
+        this.finishExam(c, false);
+        lines.push(`Dr. Shah examined ${name} on her rounds, since you were busy. ${defOf(c).finding}`);
+      }
+      const r = endOfDay(c, day, this.careToday(c.habitatId));
+      if (r.autoExamined) lines.push(`Dr. Shah examined ${name} on her rounds. ${defOf(c).finding}`);
+      if (r.medicineDelivered) {
+        lines.push(`The clinic sent ${name}'s medicine round to your bag.`);
+        if (!hasItem(this.inventory, 'medicine')) addItem(this.inventory, 'medicine', c.dosesNeeded - c.dosesGiven);
+      }
+      if (readyForCheck(c)) lines.push(`${name} seems to be over it. Inspect them and do a recovery check.`);
+      else if (c.stage === 'treating' && !r.progressed) lines.push(`${name}: today's medicine was missed, so recovery did not move on.`);
+      else if (c.stage === 'treating') lines.push(`${name} is on the mend.`);
+    }
+    return lines;
+  }
+
+  /** Does an animal fall ill tonight? Neglect makes it likelier; good care keeps most problems away. */
+  private maybeNewCase(): string | null {
+    const candidates: Candidate[] = this.animals.map((v) => {
+      const rt = this.habitats.get(v.state.habitatId)!;
+      const care = this.careToday(v.state.habitatId);
+      return {
+        animalId: v.state.id, habitatId: v.state.habitatId, speciesId: v.state.speciesId,
+        ageYears: v.state.profile?.ageYears ?? profileOf(v.state.id)?.ageYears ?? 10,
+        flags: { hungry: !care.fed && rt.food.amount <= 0, dirty: !care.clean, bored: v.state.needs.happiness < 55 && !care.enriched },
+      };
+    });
+    const c = maybeStartCase(this.medical, candidates, this.clock.day, this.seed);
+    if (!c) return null;
+    const name = this.caseName(c);
+    this.record({ category: 'care', animalId: c.animalId, key: `${c.id}-started`, text: `${name} seemed unwell: ${defOf(c).hint}.` });
+    return `${name} seems unwell this morning (${defOf(c).hint}). Inspect them and tap Health.`;
   }
 
   // ------------------------------------------------------------ saving
@@ -1447,6 +1688,7 @@ export class GameScene extends Phaser.Scene {
       piles: this.piles.map((p) => ({ ...p })),
       history: { events: this.history.events.map((e) => ({ ...e })), nextId: this.history.nextId },
       flags: [...this.flags],
+      medical: JSON.parse(JSON.stringify(this.medical)) as MedicalState,
     };
   }
 

@@ -595,6 +595,11 @@ function makeBubbles(scene: Phaser.Scene) {
     rect(c, '#8a8ad0', 17, 13, 2, 2);
     rect(c, '#8a8ad0', 14, 15, 5, 2);
   });
+  bubble('bubble_sick', (c) => {
+    rect(c, '#d8553f', 10, 5, 4, 12);
+    rect(c, '#d8553f', 6, 9, 12, 4);
+    rect(c, '#f08a7a', 11, 6, 1, 4);
+  });
 }
 
 // ---------------------------------------------------------------- workday props & icons
@@ -1282,6 +1287,13 @@ function makeGroundsArt(scene: Phaser.Scene) {
     outlined(c, '#b8402f', 9, 6, 10, 5);
     rect(c, '#f4ecd0', 11, 15, 6, 3);
     rect(c, PAL.gold, 12, 14, 4, 2);
+  });
+  icon('medicine', (c) => {
+    outlined(c, '#5a8fc0', 8, 9, 12, 15);
+    rect(c, PAL.outline, 10, 4, 8, 6);
+    rect(c, '#f4ecd0', 10, 13, 8, 7);
+    rect(c, '#d8553f', 13, 14, 2, 5);
+    rect(c, '#d8553f', 11, 16, 6, 1);
   });
   icon('spanner', (c) => {
     rect(c, PAL.outline, 5, 15, 18, 6);

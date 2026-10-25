@@ -12,7 +12,7 @@ export const PLAYER = {
 export const CAMERA_ZOOM = 2;
 
 export const SAVE_KEY = 'zookeeper.save';
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 export const AUTOSAVE_SECONDS = 30;
 
 /** How many in-game minutes pass per real second. Needs and animal rates use game minutes. */

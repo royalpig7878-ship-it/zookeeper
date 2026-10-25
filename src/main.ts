@@ -26,7 +26,7 @@ function start(tries = 0) {
     requestAnimationFrame(() => start(tries + 1));
     return;
   }
-  new Phaser.Game({
+  const game = new Phaser.Game({
     type: webglWorks() ? Phaser.AUTO : Phaser.CANVAS,
     parent: 'game',
     backgroundColor: '#1c2b1c',
@@ -41,6 +41,7 @@ function start(tries = 0) {
     input: { activePointers: 3 },
     scene: [BootScene, MenuScene, GameScene, StaffRoomScene, UIScene],
   });
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__game = game; // for testing in the browser
 }
 
 start();

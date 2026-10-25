@@ -1,6 +1,7 @@
 import { TILE } from '../config/constants';
 import { SPECIES } from '../data/animals';
 import { SpeciesDef, Trait } from '../data/animals/types';
+import { CONDITIONS, ConditionId } from '../data/conditions';
 import { traitSum } from '../data/traits';
 import { moveWithCollision, collides, BlockedFn } from '../world/movement';
 import { AnimalMemory, FAVOURITE_AFTER, GREET_BASE, newMemory } from './memory';
@@ -49,7 +50,11 @@ export interface AnimalState {
   tint: number;
   /** things that just happened, for the game to turn into history ("learned:dust", "greeted"). Not saved. */
   signals: string[];
+  /** a health problem the animal currently has (set by the medical system, changes behaviour) */
+  condition?: ConditionId;
 }
+
+const effectsOf = (a: AnimalState) => (a.condition ? CONDITIONS[a.condition].effects : null);
 
 export interface Station { amount: number } // 0-100
 
@@ -118,13 +123,16 @@ export function stepAnimal(a: AnimalState, world: AnimalWorld, dtSec: number, mi
   const s = speciesOf(a);
   const minutes = dtSec * minutesPerSec;
   a.needs = advanceNeeds(a.needs, minutes, a.activity, s, world.dirt ?? 0);
+  const fx = effectsOf(a);
+  // Being unwell is tiring: a little extra energy drain while awake.
+  if (fx && fx.drain > 1 && a.activity !== 'sleeping') a.needs.energy = clamp(a.needs.energy - (fx.drain - 1) * 0.05 * minutes);
   a.fleeCooldown = Math.max(0, a.fleeCooldown - dtSec);
   updateRelations(a, s, world, minutes);
   maybeFlee(a, s, world);
 
   switch (a.activity) {
     case 'eating': {
-      const want = Math.min(a.needs.hunger, s.rates.eatPerMin * minutes);
+      const want = Math.min(a.needs.hunger, s.rates.eatPerMin * (fx?.eat ?? 1) * minutes);
       const got = Math.min(want, world.food.amount);
       a.needs.hunger = clamp(a.needs.hunger - got);
       world.food.amount = clamp(world.food.amount - got);
@@ -243,8 +251,9 @@ export function decide(a: AnimalState, s: SpeciesDef, w: AnimalWorld): void {
   options.push({ weight: s.weights.destination, run: () => chooseDestination(a, s, w) });
   // Resting: always possible, but much more tempting when tired. Species that sleep a lot (lions) take long naps.
   const napper = s.weights.rest >= 0.5;
+  const fx = effectsOf(a);
   options.push({
-    weight: (s.weights.rest + traitSum(a.traits, 'rest')) * (n.energy < 90 ? 1 : napper ? 0.7 : 0),
+    weight: (s.weights.rest + traitSum(a.traits, 'rest') + (fx?.rest ?? 0)) * (n.energy < 90 || fx ? 1 : napper ? 0.7 : 0),
     run: () => {
       a.activity = 'resting';
       a.timer = (6 + w.rand() * 6) * (napper ? 3 : 1);
@@ -266,6 +275,10 @@ export function decide(a: AnimalState, s: SpeciesDef, w: AnimalWorld): void {
       },
     });
   }
+
+  // Scratching and pacing: restless symptoms, shown as walking along the fence.
+  const restless = (fx?.scratch ?? 0) + (fx?.pace ?? 0);
+  if (restless > 0) options.push({ weight: restless * 3, run: () => goTo(a, fencePoint(a, s, w), 'wander') });
 
   // Company: herds, pairs and colonies stay together; solitary animals keep their distance.
   const others = w.others ?? [];
@@ -380,6 +393,17 @@ function clampInside(p: Pt, s: SpeciesDef, w: AnimalWorld): Pt {
   };
 }
 
+/** A point near the edge of the habitat, for scratching against fences and pacing. */
+function fencePoint(a: AnimalState, s: SpeciesDef, w: AnimalWorld): Pt {
+  const b = w.bounds;
+  for (let i = 0; i < 6; i++) {
+    const left = w.rand() < 0.5;
+    const p = { x: left ? b.x0 + s.radius + 4 : b.x1 - s.radius - 4, y: b.y0 + w.rand() * (b.y1 - b.y0) };
+    if (!collides(p.x, p.y, s.radius, w.isBlocked)) return p;
+  }
+  return randomPoint(a, s, w);
+}
+
 function randomPoint(a: AnimalState, s: SpeciesDef, w: AnimalWorld): Pt {
   const b = w.bounds;
   for (let i = 0; i < 8; i++) {
@@ -396,7 +420,7 @@ function walk(a: AnimalState, s: SpeciesDef, w: AnimalWorld, dt: number) {
   const dy = t.y - a.y;
   const d = Math.hypot(dx, dy);
   if (d <= ARRIVE) return arrive(a, w);
-  const speed = s.speed * (1 + traitSum(a.traits, 'speed')) * a.speedMul;
+  const speed = s.speed * (1 + traitSum(a.traits, 'speed')) * a.speedMul * (effectsOf(a)?.speed ?? 1);
   const step = Math.min(speed * dt, d);
   const next = moveWithCollision(a.x, a.y, (dx / d) * step, (dy / d) * step, s.radius, w.isBlocked);
   const moved = Math.hypot(next.x - a.x, next.y - a.y);

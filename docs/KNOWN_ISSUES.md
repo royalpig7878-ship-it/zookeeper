@@ -7,7 +7,7 @@
 - Playing offline after install (no service worker yet).
 
 ## Incomplete / placeholder
-- Doors, dock, vet clinic, shed and gate only show placeholder dialogue.
+- Doors, dock, shed and gate only show placeholder dialogue. The vet clinic is a menu, not an interior.
 - Only one animal (Buster, elephant). Other species come in Milestone 7.
 - Needs run on a simple clock (1 real second = 1 in-game minute, so a shift is about 10 real minutes). No offline catch-up yet (Milestone 10), so the zoo is frozen while the game is closed.
 - Day 2 and later repeat the same kind of tasks; there is no variety, rewards or unlocks yet.
@@ -27,6 +27,16 @@
 - Only one hand-designed zoo; seed only changes decoration (full generator is Milestone 5).
 - The `prompt()` box for entering a seed is basic.
 - Production bundle is ~1.2 MB (330 KB gzipped) because it includes all of Phaser.
+
+## Milestone 8 gaps
+- Dr. Shah has no art of her own: she is the keeper's sprite with a blue tint. The clinic is a door with a menu, not an interior, and there is no dialogue tree beyond a few lines.
+- Condition numbers (how often illness starts, recovery days, how much neglect matters) are first guesses and have not been balanced by long play.
+- Only one animal is ill at a time, by design, so it never overwhelms a new player. Later chapters might want outbreaks.
+- Medicine is a single generic bag item ("Prescribed medicine"), not a different picture per condition. Doses are given from the Health sheet, not by walking to the feeding hatch.
+- There is no separate vet task in the daily task list; the report has a VET CARE section instead, so unfinished vet care does not block ending a shift.
+- Symptoms are shown by a bubble and behaviour (slower, pacing); there are no special "limping" or "scratching" sprites.
+- On narrow screens the Health and History buttons sit over the second line of the inspect panel's subtitle.
+- Saves from before Milestone 8 start with no medical history; the first case is Buster's upset tummy on day 2, or from then on by chance.
 
 ## Milestone 7 gaps
 - No otters yet (the five species fill every habitat type; otters need a water habitat of their own).

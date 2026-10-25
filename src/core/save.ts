@@ -9,6 +9,7 @@ import { ITEMS } from '../data/items';
 import { ALL_TASK_EVENTS } from '../systems/tasks';
 import { AnimalMemory, validateMemory } from '../animals/memory';
 import { History, validateHistory } from '../systems/history';
+import { MedicalState, validateMedical } from '../systems/medical';
 import type { Clock } from '../systems/clock';
 import type { Pile } from '../systems/cleaning';
 import type { Slot } from '../systems/inventory';
@@ -44,6 +45,8 @@ export interface SaveData {
   habitatStations?: Record<string, { food: number; water: number }>;
   /** the enrichment item currently in each habitat, if any */
   enrichment?: Record<string, { item: string; x: number; y: number; interest: number }>;
+  /** Added in save version 7 (veterinary care): health cases and their histories. Missing in older saves. */
+  medical?: MedicalState;
 }
 
 export interface AnimalSave {
@@ -142,10 +145,17 @@ export function validateSave(raw: unknown): ValidationResult {
       enrichment[id] = { item: e.item, x: e.x, y: e.y, interest: clamp100(e.interest) };
     }
   }
+  let medical: MedicalState | undefined;
+  if (s.medical !== undefined) {
+    const m = validateMedical(s.medical);
+    if (typeof m === 'string') return { ok: false, reason: m };
+    medical = m;
+  }
   return {
     ok: true,
     data: {
       ...workday,
+      medical,
       habitatStations,
       enrichment,
       mown,

@@ -106,9 +106,21 @@ Willow Creek now has zebras, lions, red pandas and penguins as well as Buster. E
 
 All art is original and drawn in code, so there are no outside asset licences to track.
 
+## Milestone 8: Veterinary Care
+
+Animals can now become unwell, and you handle it with Dr. Priya Shah, the visiting vet.
+
+- **Notice.** Around day 2, Buster seems off: a red-cross bubble appears over an animal who is unwell, and inspecting them shows what you can see (eating less, a sore leg, scratching, a cough, pacing, stiffness). They also *act* differently: slower, resting more, pacing the fence. Good care (a full feeder, a clean habitat, something to do) makes illness much rarer; neglect makes it likelier. Only one animal is unwell at a time.
+- **Record.** Tap the animal, then **Health**, then **Record symptoms** (you need the notebook from your staff room locker). Noticing early means a quicker recovery.
+- **Report.** Go to the **VET CLINIC** door and report it. Dr. Shah arrives at the habitat gate about 45 minutes later (or first thing tomorrow if it is late in the day).
+- **Assist.** When she arrives you will see her at the gate: press **ASSIST DR. SHAH**. She explains what is wrong and what to do.
+- **Treat.** Collect the medicine at the clinic, fill the feeder (the medicine goes in the food), then **Health > Give today's dose**, once a day. Follow the care plan for that illness (for example "keep the habitat clean").
+- **Recover.** When they are well again, inspect them and do a **Recovery check**. Everything is written into the animal's **History** (a Medical History section) and the care report.
+- **It is forgiving.** If you are slow, Dr. Shah examines the animal on her rounds and the clinic brings the medicine round. A day without following the care plan counts as half a day; nothing ever gets worse because of it.
+
 ## Not built yet
 
-More animals, story, staff room, weather, vet care, mowing, boating, audio. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
+More animals (otters), story, weather, audio. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
 ## Documentation
 

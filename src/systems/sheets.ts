@@ -12,6 +12,10 @@ import { Clock, formatTime } from './clock';
 import { History, ZooEvent, forAnimal, hasEvent, newestFirst, unlockedPhotos } from './history';
 import { INVENTORY_SLOTS, Slot, countItem, hasItem } from './inventory';
 import { TaskState, reportLines } from './tasks';
+import { CONDITIONS } from '../data/conditions';
+import {
+  MedicalCase, MedicalState, activeCases, caseLines, casesOf, defOf, needsDoseToday, readyForCheck, statusLine,
+} from './medical';
 
 /**
  * Builders for the text "sheets" (bag, care report, history...). They only turn game state into
@@ -101,11 +105,13 @@ export function enrichSheet(habitatId: string, group: string, inv: readonly Slot
   };
 }
 
-export function reportSheet(tasks: readonly TaskState[], clock: Clock, title?: string, extra: SheetData['buttons'] = []): SheetData {
+export function reportSheet(
+  tasks: readonly TaskState[], clock: Clock, title?: string, extra: SheetData['buttons'] = [], vetLines: readonly string[] = [],
+): SheetData {
   return {
     title: title ?? `Care Report - Day ${clock.day}`,
     subtitle: `Willow Creek Wildlife Park, ${formatTime(clock.minutes)}`,
-    lines: reportLines(tasks),
+    lines: [...(vetLines.length ? ['#VET CARE', ...vetLines] : []), ...reportLines(tasks)],
     buttons: [...extra, { id: 'close', label: 'Close' }],
   };
 }
@@ -121,7 +127,7 @@ export function confirmEndSheet(tasks: readonly TaskState[]): SheetData {
 }
 
 /** Everything the zoo knows about one animal: who it is, how it behaves, and what has happened to it. */
-export function historySheet(a: AnimalState, history: History, names: Record<string, string> = {}): SheetData {
+export function historySheet(a: AnimalState, history: History, names: Record<string, string> = {}, cases: readonly MedicalCase[] = []): SheetData {
   const species = SPECIES[a.speciesId];
   const profile = a.profile ?? profileOf(a.id);
   const lines: string[] = [`#ABOUT ${a.name.toUpperCase()}`];
@@ -145,6 +151,11 @@ export function historySheet(a: AnimalState, history: History, names: Record<str
     if (count > 0 && ITEMS[item]) noticed.push(`Has played with the ${ITEMS[item].name.toLowerCase()} (${count} time${count === 1 ? '' : 's'}).`);
   }
   lines.push(...(noticed.length ? noticed : [`Still getting to know ${a.name}. Watch where they choose to spend their time.`]));
+
+  const mine = cases.filter((c) => c.animalId === a.id);
+  lines.push('#MEDICAL HISTORY');
+  if (mine.length === 0) lines.push(`No health problems recorded for ${a.name}.`);
+  for (const c of [...mine].reverse()) lines.push(...caseLines(c), '');
 
   lines.push('#HISTORY');
   const events = newestFirst(forAnimal(history, a.id)).slice(0, 30);
@@ -193,3 +204,61 @@ export function notesSheet(discovered: ReadonlySet<string>): SheetData {
   if (count === 0) lines.push('No notes found yet. Keep exploring the park and your locker.');
   return { title: 'Notes', subtitle: `${count} of ${Object.keys(NOTES).length} found`, lines, buttons: [{ id: 'close', label: 'Close' }] };
 }
+
+// ---------------------------------------------------------------- veterinary care
+
+/** Dr. Shah's clinic: report recorded symptoms, collect prescribed medicine. */
+export function clinicSheet(m: MedicalState, names: Record<string, string>): SheetData {
+  const lines: string[] = ['#DR. SHAH'];
+  const active = activeCases(m);
+  if (active.length === 0) {
+    lines.push('Dr. Priya Shah looks up from her notes. "Nothing to report? Good. Come and find me the moment an animal seems off. Early notice makes all the difference."');
+  } else {
+    lines.push('"Tell me what you have seen and I will take it from there."');
+    lines.push('#CURRENT CASES');
+    for (const c of active) lines.push(statusLine(c, names[c.animalId] ?? 'An animal'));
+  }
+  const buttons: SheetData['buttons'] = [];
+  for (const c of active) {
+    const name = names[c.animalId] ?? 'animal';
+    if (c.stage === 'recorded') buttons.push({ id: `vet-report:${c.id}`, label: `Report ${name}`, color: 0x3f8f58 });
+    if (c.stage === 'examined') buttons.push({ id: `vet-collect:${c.id}`, label: `Collect ${defOf(c).medicine?.name.toLowerCase() ?? 'medicine'}`, color: 0x3f8f58 });
+  }
+  buttons.push({ id: 'close', label: 'Close' });
+  return { title: 'Veterinary Clinic', subtitle: 'Dr. Priya Shah, visiting vet', lines, buttons };
+}
+
+/** One animal's current case from the keeper's side: symptoms, plan, and what can be done right now. */
+export function medicalSheet(c: MedicalCase, name: string, day: number, haveNotebook: boolean, haveMedicine: boolean, feederHasFood: boolean): SheetData {
+  const d = defOf(c);
+  const lines: string[] = [`#${d.name.toUpperCase()}`, statusLine(c, name), '#WHAT YOU CAN SEE', ...d.symptoms.map((x) => `- ${x}`)];
+  const buttons: SheetData['buttons'] = [];
+  if (c.stage === 'early') {
+    lines.push('#NEXT STEP', haveNotebook ? 'Write the symptoms in your notebook. Noticing early means a quicker recovery.' : 'You need your notebook from the staff room locker to record symptoms.');
+    if (haveNotebook) buttons.push({ id: 'med-record', label: 'Record symptoms', color: 0x3f8f58 });
+  } else if (c.stage === 'recorded') {
+    lines.push('#NEXT STEP', 'Take your notes to Dr. Shah at the vet clinic and report them.');
+  } else if (c.stage === 'reported') {
+    lines.push('#NEXT STEP', 'Dr. Shah is on her way. When she arrives at the habitat gate, help her with the examination.');
+  } else if (c.stage === 'examined') {
+    lines.push('#NEXT STEP', `Collect the ${d.medicine?.name.toLowerCase()} from the clinic.`);
+  } else if (c.stage === 'treating') {
+    lines.push('#CARE PLAN', d.care.text);
+    if (d.medicine) {
+      lines.push(`Medicine: ${d.medicine.name}, dose ${c.dosesGiven} of ${c.dosesNeeded} given. One dose a day, in the feed.`);
+      if (needsDoseToday(c, day)) {
+        lines.push(feederHasFood ? "Today's dose is due." : "Today's dose is due. Fill the feeder first: the medicine goes in the food.");
+        if (haveMedicine && feederHasFood) buttons.push({ id: 'med-dose', label: "Give today's dose", color: 0x3f8f58 });
+        else if (!haveMedicine) lines.push('You are not carrying any medicine.');
+      } else if (c.dosesGiven < c.dosesNeeded) lines.push("Today's dose is done.");
+    }
+    if (readyForCheck(c)) {
+      lines.push('#RECOVERY CHECK', `${name} looks well again. Check them over to confirm.`);
+      buttons.push({ id: 'med-check', label: 'Recovery check', color: 0x3f8f58 });
+    }
+  }
+  buttons.push({ id: 'close', label: 'Close' });
+  return { title: `${name}: Health`, subtitle: CONDITIONS[c.condition].name, lines, buttons };
+}
+
+export const vetCasesFor = (m: MedicalState, animalId: string) => casesOf(m, animalId);

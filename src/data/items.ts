@@ -26,6 +26,7 @@ export const ITEMS: Record<string, ItemDef> = {
     id: 'spanner', name: "Leo's spanner", category: 'story', stack: 1,
     description: 'A good spanner with L.M. scratched on the handle. Someone will be glad to get it back.',
   },
+  medicine: { id: 'medicine', name: 'Prescribed medicine', category: 'tool', stack: 4, description: "From Dr. Shah's clinic. One dose a day goes into the animal's feed." },
   notebook: { id: 'notebook', name: 'Inspection notebook', category: 'tool', stack: 1, description: 'For recording what you notice about the animals.' },
   firstaid: { id: 'firstaid', name: 'First-aid kit', category: 'tool', stack: 1, description: 'Basic supplies for minor care. Dr. Shah handles the rest.' },
   hay: { id: 'hay', name: 'Hay', category: 'ingredient', stack: 4, description: 'Fresh hay. An ingredient for elephant meals.' },

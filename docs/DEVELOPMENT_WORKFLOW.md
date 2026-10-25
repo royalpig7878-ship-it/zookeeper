@@ -15,7 +15,7 @@ Status legend: **Done** (built and tested), **Partial**, **Not started**.
 | 5 | Procedural Zoo | Done (see checklist; real-phone test still pending) |
 | 6 | Groundskeeping | Done (see checklist; real-phone test still pending) |
 | 7 | Multiple Animals | Done (see checklist; otter and real-phone test still pending) |
-| 8 | Veterinary Care | Not started |
+| 8 | Veterinary Care | Done (see checklist; real-phone test still pending) |
 | 9 | Story | Not started |
 | 10 | Living Zoo | Not started |
 | 11 | Polish | Not started |
@@ -130,6 +130,19 @@ Honest notes: mowing, boating and the chores have been tested in the browser wit
 
 Honest notes: otters were left out for now (the other five species fill all the habitat types). Several behaviours are first-pass numbers tuned by watching totals, not by feel. The lying-down sprites (lion especially) are rough. With only a few animals per species, "herd" and "colony" behaviour is simple cohesion, not full flocking.
 
+## Milestone 8 checklist
+
+- [x] Six fictional, mild conditions with plain-English symptoms (`data/conditions.ts`): upset tummy, sore leg, mild parasites, chesty cough, stress, stiff joints (old animals only). Each has symptoms, what the vet says, medicine (or none), recovery days and a care plan rule (fed, clean, enriched, rest)
+- [x] Medical case lifecycle (`systems/medical.ts`, pure logic): first signs, record in notebook, report at the clinic, Dr. Shah visits the habitat gate, assisted examination, prescription, collect medicine, one dose a day in the feed, care plan, recovery check, recovered
+- [x] When illness starts: the first case is always Buster's upset tummy on day 2 (a guided first case); after that it is seeded chance, made likelier by an empty feeder, a dirty habitat or a bored animal, with one case at a time and a 3-day cooldown. Works for every species
+- [x] Fairness: noticing early shortens recovery; a slow keeper is never punished (the vet steps in after 2 days, the medicine is delivered after 2 days, a day without the care plan counts half, a missed dose pauses progress); health never drops because of a condition
+- [x] Visible symptoms: red-cross bubble over untreated animals, plus real behaviour changes (slower walking, slower eating, more resting, pacing the fence, extra tiredness) that ease off when they look well again
+- [x] Interface: Health button in the inspect panel, a Health sheet whose buttons match the next step, the Vet Clinic sheet, a VET CARE section in the care report and a Medical History section in the animal's story. Dr. Shah appears at the gate during a visit
+- [x] Save version 7 (`medical`). Older saves load with no medical records. A saved case resumes at the same step
+- [x] 188 automated tests (29 new: data, full case, no skipped steps, fairness, onset rules, reproducibility, saving, behaviour changes, sheets). Browser: a complete scenario from discovery to recovery on Buster (record, report, visit, assist, collect, three doses over three days, recovery check), the history sheet showing it, a save and reload keeping the case history
+
+Honest notes: Dr. Shah is the keeper sprite with a blue tint (no unique art yet) and the clinic is still only a door, not an interior. The condition numbers (how often illness starts, how many days to recover) are first guesses. The scenario was driven by scripted calls and a few real clicks, not played by hand on a phone. There is no daily "vet task" in the task list; the VET CARE section of the report shows what is next.
+
 ## Next steps
 
-Milestone 8: veterinary care. Symptoms, care reports, vet requests, recovery and medical history, for any of the animals. Seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)
+Milestone 9: story chapters. Earlier note for reference: seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)

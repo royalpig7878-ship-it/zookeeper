@@ -19,6 +19,7 @@ Style: top-down, 32x32 tiles, dark outline, small shared palette (`PAL`), neares
 | Groundskeeping | wild meadow tile; mown-lawn tiles (two shades); hedge; job pictures for weeds, branch, dry flowerbed, overgrown hedge, loose bench, floating litter, pondweed and lost object; mower (3 directions, 2 frames); boat (3 directions, 2 frames, plus an empty moored boat); clippings; icons for trowel, hedge trimmer, watering can, toolkit and spanner |
 | More species | zebra, lion and red panda (5 poses each: stand, two walk frames, eat, sleep); penguin (the same plus a swimming pose); each shown with a slight individual colour variation in game |
 | Food and enrichment | icons for vegetables, bamboo, meat, fish, the four new meals (zebra, red panda, lion, penguin), floating ball, puzzle feeder and scent kit (the same pictures are used inside habitats) |
+| Veterinary care | red-cross status bubble for an unwell animal; medicine bottle icon. Dr. Shah reuses the keeper sprite with a blue tint (placeholder) |
 | UI | joystick base and knob; status bubbles (food, water, sleep); buttons/panels are drawn with shapes |
 
 ## Missing (planned)

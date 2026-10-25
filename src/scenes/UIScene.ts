@@ -21,6 +21,8 @@ export interface InspectData {
   bars: { label: string; value: number; color: number }[];
   tips: string[];
   traits: string[];
+  /** label for the health button when this animal has a case open (e.g. "Health") */
+  vet?: string;
 }
 
 export interface DialogRequest {
@@ -61,6 +63,7 @@ export class UIScene extends Phaser.Scene {
   private inspectTips!: Phaser.GameObjects.Text;
   private inspectHint!: Phaser.GameObjects.Text;
   private inspectHistoryBtn!: Phaser.GameObjects.Container;
+  private inspectVetBtn!: Phaser.GameObjects.Container;
   private inspectData: InspectData | null = null;
   private inspectSize = { w: 0, h: 0 };
 
@@ -434,8 +437,13 @@ export class UIScene extends Phaser.Scene {
       this.game.events.emit('ui:open', 'history');
     }, { fontSize: 16, color: 0x4a5a8a });
     this.inspectHistoryBtn = historyBtn.container;
+    const vetBtn = makeButton(this, 0, 0, 104, 38, 'Health', () => {
+      this.closeInspect();
+      this.game.events.emit('ui:open', 'medical');
+    }, { fontSize: 16, color: 0xb8402f });
+    this.inspectVetBtn = vetBtn.container;
     this.inspectPanel = this.add.container(0, 0, [
-      this.inspectGfx, this.inspectTitle, this.inspectSub, this.inspectTips, this.inspectHint, ...this.inspectLabels, this.inspectHistoryBtn,
+      this.inspectGfx, this.inspectTitle, this.inspectSub, this.inspectTips, this.inspectHint, ...this.inspectLabels, this.inspectHistoryBtn, this.inspectVetBtn,
     ]).setDepth(12).setVisible(false);
     this.inspectPanel.on('pointerup', () => this.closeInspect());
   }
@@ -453,6 +461,7 @@ export class UIScene extends Phaser.Scene {
     this.inspectSub.setPosition(18, 44);
     this.inspectHint.setPosition(w - 14, h - 8);
     this.inspectHistoryBtn.setPosition(w - 76, 32);
+    this.inspectVetBtn.setPosition(w - 76 - 116, 32);
     if (this.inspectData) this.renderInspect(this.inspectData);
   }
 
@@ -491,6 +500,7 @@ export class UIScene extends Phaser.Scene {
     });
     const tipsY = top + d.bars.length * rowH + 8;
     this.inspectTips.setPosition(18, tipsY).setWordWrapWidth(w - 36).setText(['Care:', ...d.tips.map((t) => '- ' + t)].join('\n'));
+    this.inspectVetBtn.setVisible(!!d.vet);
     this.inspectHint.setText('tap to close');
   }
 

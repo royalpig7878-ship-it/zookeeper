@@ -10,10 +10,13 @@ You are a zookeeper at Willow Creek Wildlife Park, not its owner. The zoo alread
 5. A cozy world with meaningful choices.
 
 ## Status
-Only the foundation (Milestone 1) exists: walking around the park, signs, one discoverable note. Everything else follows the milestone order in [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md).
+Milestones 1 to 8 are built: walking the park, animals with personalities and memories, a daily workday, a generated zoo, groundskeeping, several species, and veterinary care. The current list is in [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md).
+
+## Veterinary care (design)
+Illness is gentle and teaches a routine: notice, record, report, assist, treat, recheck. Conditions are mild and fictional. Good routine care prevents most illness; neglect makes it likelier but never punishes the keeper once a case has started (the vet steps in, a missed day counts as half). One animal is unwell at a time. The first case is always Buster's, on day 2, so every player learns the whole process once.
 
 ## Cast (planned)
-Margaret Holloway (retired head keeper), Daniel Brooks (senior keeper), Dr. Priya Shah (vet), Maya Chen (groundskeeper), Leo Martinez (maintenance).
+Margaret Holloway (retired head keeper), Daniel Brooks (senior keeper), Dr. Priya Shah (vet, appears from Milestone 8), Maya Chen (groundskeeper), Leo Martinez (maintenance).
 
 ## Story chapters (planned)
 1. The First Shift 2. Buster Remembers 3. A New Arrival 4. The Storm 5. New Life 6. Margaret's Last Letter. Chapter 1 is built first; the narrative system will be data-driven so chapters can be added.

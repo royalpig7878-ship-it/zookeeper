@@ -35,6 +35,13 @@ Pure modules in `src/systems/` (all unit-tested without Phaser):
 
 World freezes (`registry.paused`) behind the pause menu and any sheet. Dialogues and the inspect panel do not freeze it.
 
+## Veterinary care (Milestone 8)
+- Data first: `data/conditions.ts` defines every condition (symptoms, vet finding, medicine and doses, recovery days, the care-plan rule, behaviour effects, onset weight and age limit).
+- `systems/medical.ts` is pure logic with no Phaser: a `MedicalCase` moves through the stages `early, recorded, reported, examined, treating, recovered` using small functions (`recordSymptoms`, `reportToVet`, `visitDue`, `examine`, `collectMedicine`, `giveDose`, `recoveryCheck`). `endOfDay(case, day, care)` is the overnight bookkeeping and holds the fairness rules; `maybeStartCase` decides who falls ill from a seeded `Rng` and what the keeper neglected. `validateMedical` checks saved data.
+- `animals/simulation.ts` reads `AnimalState.condition` (set from the active case, not saved on the animal) to slow walking and eating, add resting, drain energy and add fence-pacing.
+- `GameScene` holds the `MedicalState`, tracks what was done today (`fedToday`, `enrichedToday`), shows the vet at the gate (`syncMedical`), and turns sheet button ids (`vet-report:<case>`, `vet-collect:<case>`, `med-record`, `med-dose`, `med-check`) into actions. `sheets.ts` builds `clinicSheet` and `medicalSheet`; the inspect panel gets a Health button when `InspectData.vet` is set.
+- Events are written into the history with keys like `case1-recorded`, so they appear once in the story and unlock nothing twice.
+
 ## Many animals (Milestone 7)
 - Data first: `data/animals/species.ts` (one definition per species: rates, thresholds, social kind, activity weights, special places it likes, how it reacts to strangers, whether it swims, how much it likes each enrichment item), `data/traits.ts` (numeric effects added up over an animal's traits), `data/animals/roster.ts` (ages and backstories), `data/habitats.ts` (habitat types, each tied to one species).
 - `animals/simulation.ts` is species-agnostic: `decide()` builds a weighted list of ways to spend time (go somewhere, rest, stand, graze, join a companion, move away, play with enrichment) and picks by weight; `maybeFlee()` makes nervous species hide or bolt; `updateRelations()` grows or shrinks liking between neighbours. The animal reports what happened through `signals` (`learned:`, `greeted`, `friends:`, `avoids:`, `played:`), which the scene turns into history and tasks.
@@ -80,7 +87,10 @@ World freezes (`registry.paused`) behind the pause menu and any sheet. Dialogues
 ## Collision
 Tile grid. The player is a small square around their feet; each axis is moved separately so they slide along walls (`moveWithCollision`).
 
-## Save format (version 6)
+## Save format (version 7)
+Version 7 adds `medical` (`{ cases, nextId, lastOnsetDay }`; each case has its condition, stage, visit, doses, progress and a written log). Older saves load with no medical records. Version 6 notes follow.
+
+### Version 6 base
 Version 6 adds, per animal, `habitatId`, `profile` (age, backstory, innate leanings), `tint` and, in `memory`, `relations` and `plays`; and at the top level `habitatStations` (feeder and trough by habitat id) and `enrichment` (the item in each habitat, if any). The old single `stations` field is still written for the elephant habitat. Older saves load: missing fields get defaults, an animal with no habitat is Buster in the elephant habitat, and any habitat without saved animals gets its roster. `generatorVersion` is now the version of the zoo actually on screen. Version 5 notes follow.
 
 ### Version 5 base
@@ -113,4 +123,4 @@ The layout is **not** saved; it is rebuilt from the seed. Saves are validated be
 
 ## Testing
 `npm test`: layout reproducibility, reachability of every interactable and the dock/gate for several seeds, building overlap, collision, save round-trip and invalid-save handling.
-In dev builds the running scene is exposed as `window.__zoo` for debugging.
+In dev builds the running scene is exposed as `window.__zoo` and the Phaser game as `window.__game` for debugging.

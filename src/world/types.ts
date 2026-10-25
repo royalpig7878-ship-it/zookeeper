@@ -36,7 +36,7 @@ export interface PlacedObject {
 }
 
 export type InteractAction =
-  | 'feed' | 'water' | 'enrich' | 'tools' | 'boat' | 'bucket' | 'hay' | 'fruit' | 'prep' | 'enter' | 'pile'
+  | 'feed' | 'water' | 'enrich' | 'tools' | 'boat' | 'bucket' | 'hay' | 'fruit' | 'prep' | 'enter' | 'pile' | 'clinic' | 'vetvisit'
   // staff room
   | 'exit' | 'desk' | 'noticeboard' | 'locker' | 'calendar' | 'photos' | 'notes' | 'sit';
 

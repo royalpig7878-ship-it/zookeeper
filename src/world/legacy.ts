@@ -176,8 +176,8 @@ export function buildLegacyZoo(seed: string, version = 1, usedFallback = false):
     { id: 'fruit-crate', x: 11, y: 22, label: 'FRESH STORE', title: 'Fresh store', action: 'fruit', text: [] },
     { id: 'prep-counter', x: 12, y: 22, label: 'PREP COUNTER', title: 'Prep counter', action: 'prep', text: [] },
     {
-      id: 'vet-door', ...doorOf('building_vet'), label: 'VET CLINIC', title: 'Veterinary Clinic',
-      text: ["Dr. Shah's clinic. A sign on the door: \"Back after rounds.\"", '(Veterinary care is coming in a later milestone.)'],
+      id: 'vet-door', ...doorOf('building_vet'), label: 'VET CLINIC', title: 'Veterinary Clinic', action: 'clinic',
+      text: ["Dr. Shah's clinic. A sign on the door: \"Back after rounds.\""],
     },
     {
       id: 'shed-door', ...doorOf('building_shed'), label: 'OPEN SHED', title: 'Maintenance Shed', action: 'tools',
