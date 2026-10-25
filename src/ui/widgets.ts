@@ -45,6 +45,7 @@ export function makeButton(
   container.on('pointerup', () => {
     if (!enabled) return;
     draw(false);
+    scene.game.events.emit('sfx', 'click');
     onClick();
   });
   return {

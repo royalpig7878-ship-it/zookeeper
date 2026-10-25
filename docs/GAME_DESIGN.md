@@ -12,6 +12,9 @@ You are a zookeeper at Willow Creek Wildlife Park, not its owner. The zoo alread
 ## Status
 Milestones 1 to 8 are built: walking the park, animals with personalities and memories, a daily workday, a generated zoo, groundskeeping, several species, and veterinary care. The current list is in [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md).
 
+## Comfort and access (design)
+The game must stay playable with sound off, with one thumb, and without relying on colour alone. Settings can move the controls to the other hand, enlarge them, calm the motion and show numbers on the bars. Saving is automatic and forgiving, with a second copy kept from the start of each day.
+
 ## The living zoo (design)
 The zoo is alive but patient. Weather gives each day a character. Animals form families only when conditions have been right for a long time, and the player never forces it. Nothing in this layer punishes: a late shift, a long absence or a neglected habitat delays good things and never causes harm. Breeding is optional and the story never needs it.
 

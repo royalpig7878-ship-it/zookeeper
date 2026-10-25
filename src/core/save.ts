@@ -1,4 +1,4 @@
-import { SAVE_KEY, SAVE_VERSION } from '../config/constants';
+import { BACKUP_KEY, SAVE_KEY, SAVE_VERSION } from '../config/constants';
 import type { Needs } from '../animals/needs';
 import type { AnimalState } from '../animals/simulation';
 import type { Trait } from '../data/animals/types';
@@ -302,27 +302,58 @@ export function parseSave(text: string): ValidationResult {
   }
 }
 
-export function writeSave(store: KeyValueStore, data: SaveData): boolean {
+/**
+ * Save the game. With `backup`, the save is also kept as a second copy (done at the end of each day and
+ * when quitting, not every autosave, so storage is not written twice all the time).
+ */
+export function writeSave(store: KeyValueStore, data: SaveData, backup = false): boolean {
   try {
-    store.setItem(SAVE_KEY, JSON.stringify({ ...data, version: SAVE_VERSION, savedAt: Date.now() }));
+    const text = JSON.stringify({ ...data, version: SAVE_VERSION, savedAt: Date.now() });
+    store.setItem(SAVE_KEY, text);
+    if (backup) {
+      try {
+        store.setItem(BACKUP_KEY, text);
+      } catch {
+        /* the main save worked; a missing backup is not worth failing for */
+      }
+    }
     return true;
   } catch {
     return false;
   }
 }
 
-export type LoadResult = { status: 'none' } | { status: 'ok'; data: SaveData } | { status: 'invalid'; reason: string };
+/** The backup copy, if there is one and it is good. */
+export function readBackup(store: KeyValueStore): ValidationResult | null {
+  try {
+    const text = store.getItem(BACKUP_KEY);
+    return text === null ? null : parseSave(text);
+  } catch {
+    return null;
+  }
+}
+
+/** Put the backup back as the main save. Returns the restored game, or null if there is no good backup. */
+export function restoreBackup(store: KeyValueStore): SaveData | null {
+  const b = readBackup(store);
+  if (!b || !b.ok) return null;
+  return writeSave(store, b.data, false) ? b.data : null;
+}
+
+export type LoadResult = { status: 'none' } | { status: 'ok'; data: SaveData } | { status: 'invalid'; reason: string; backup: boolean };
 
 export function readSave(store: KeyValueStore): LoadResult {
   let text: string | null;
   try {
     text = store.getItem(SAVE_KEY);
   } catch {
-    return { status: 'invalid', reason: 'Storage is unavailable on this device.' };
+    return { status: 'invalid', reason: 'Storage is unavailable on this device.', backup: false };
   }
   if (text === null) return { status: 'none' };
   const result = parseSave(text);
-  return result.ok ? { status: 'ok', data: result.data } : { status: 'invalid', reason: result.reason };
+  if (result.ok) return { status: 'ok', data: result.data };
+  const b = readBackup(store);
+  return { status: 'invalid', reason: result.reason, backup: !!b && b.ok };
 }
 
 export function clearSave(store: KeyValueStore): void {

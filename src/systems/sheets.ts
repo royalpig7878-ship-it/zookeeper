@@ -13,6 +13,7 @@ import { History, ZooEvent, forAnimal, hasEvent, newestFirst, unlockedPhotos } f
 import { INVENTORY_SLOTS, Slot, countItem, hasItem } from './inventory';
 import { TaskState, reportLines } from './tasks';
 import { Relative, familyOf, stageWord } from './life';
+import type { Settings } from '../core/settings';
 import { CONDITIONS } from '../data/conditions';
 import {
   MedicalCase, MedicalState, activeCases, caseLines, casesOf, defOf, needsDoseToday, readyForCheck, statusLine,
@@ -279,3 +280,42 @@ export function medicalSheet(c: MedicalCase, name: string, day: number, haveNote
 }
 
 export const vetCasesFor = (m: MedicalState, animalId: string) => casesOf(m, animalId);
+
+// ---------------------------------------------------------------- settings
+
+const onOff = (v: boolean) => (v ? 'on' : 'off');
+const bar = (step: number) => `${'#'.repeat(step)}${'.'.repeat(10 - step)}  ${step * 10}%`;
+
+/** Sound, controls and accessibility. Each button changes one thing and the sheet is shown again. */
+export function settingsSheet(s: Settings): SheetData {
+  return {
+    title: 'Settings',
+    subtitle: 'Saved on this device. They apply to every game.',
+    lines: [
+      '#SOUND',
+      `Music  ${bar(s.music)}`,
+      `Sound effects  ${bar(s.sfx)}`,
+      `All sound is ${s.muted ? 'muted' : 'on'}. Sound starts after your first tap or key press. Use Test sound to check it, and turn up the device volume too.`,
+      '#CONTROLS',
+      `Left-handed layout: ${onOff(s.leftHanded)} (joystick on the right, action button on the left)`,
+      `Large controls: ${onOff(s.bigControls)}`,
+      '#COMFORT',
+      `Reduced motion: ${onOff(s.reducedMotion)} (no falling rain, no camera smoothing)`,
+      `Numbers on animal bars: ${onOff(s.showNumbers)} (so colour is never the only clue)`,
+    ],
+    buttons: [
+      { id: 'set-music-down', label: 'Music -' },
+      { id: 'set-music-up', label: 'Music +' },
+      { id: 'set-sfx-down', label: 'Effects -' },
+      { id: 'set-sfx-up', label: 'Effects +' },
+      { id: 'set-mute', label: s.muted ? 'Unmute' : 'Mute all', color: 0x4a5a8a },
+      { id: 'set-hand', label: `Left hand: ${onOff(s.leftHanded)}`, color: 0x4a5a8a },
+      { id: 'set-big', label: `Big controls: ${onOff(s.bigControls)}`, color: 0x4a5a8a },
+      { id: 'set-motion', label: `Calm motion: ${onOff(s.reducedMotion)}`, color: 0x4a5a8a },
+      { id: 'set-numbers', label: `Numbers: ${onOff(s.showNumbers)}`, color: 0x4a5a8a },
+      { id: 'set-test', label: 'Test sound', color: 0x3f8f58 },
+      { id: 'set-reset', label: 'Reset all', color: 0x97402f },
+      { id: 'close', label: 'Close' },
+    ],
+  };
+}

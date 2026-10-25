@@ -139,9 +139,19 @@ The zoo now changes over time, gently.
 - **Random happenings.** Now and then something small happens (a school visit, a busy weekend's litter, a photographer, apples from Maya, a routine check), at most once every three days. They are never harmful.
 - **Breeding is never needed for the story.** If you do nothing special, the zoo stays the same size.
 
+## Milestone 11: Polish
+
+- **Settings** (menu and pause menu): music and effects volume, mute, left-handed layout, large controls, reduced motion (no falling rain or camera smoothing), and numbers on the animal bars. They are saved on the device and apply to every game.
+- **Sound:** gentle music, footsteps, button clicks, task chimes, birds in daylight, rain and thunder, a chirp for a newborn. All made in the browser, so there are no audio files, and the game plays fine with sound off. It starts after your first tap or key press (browsers require that), and Settings has a **Test sound** button.
+- **Save recovery:** a second copy of your game is kept from the start of each day. If the main save is ever damaged, the menu offers to restore it.
+- **Away from the tab:** coming back to the game after 15 minutes or more now gives the same "Welcome back" rest as continuing a save.
+- **Phone-ready:** safe-area margins for notches, a turn-your-phone note in portrait, an app manifest and icons ("Add to Home Screen" opens it full-screen), and the engine in its own cached file.
+- **People:** Daniel and Dr. Shah have their own look. More random happenings. The inspect panel and the menu fit short landscape phones better.
+- `npm run verify` runs the type check, all tests and a production build in one go.
+
 ## Not built yet
 
-More animals (otters), Chapters 3 to 6, audio, settings. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
+More animals (otters), Chapters 3 to 6, final art, large text, offline play. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
 ## Documentation
 

@@ -1,12 +1,17 @@
 import Phaser from 'phaser';
 import { DEFAULT_SEED } from '../config/constants';
-import { browserStore, clearSave, readSave } from '../core/save';
+import { browserStore, clearSave, readSave, restoreBackup } from '../core/save';
+import { settings } from '../core/settingsInstance';
+import { settingsSheet } from '../systems/sheets';
+import { SheetPanel } from '../ui/sheet';
 import { COLORS, FONT, makeButton } from '../ui/widgets';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super('Menu');
   }
+
+  private sheet!: SheetPanel;
 
   create() {
     this.layout();
@@ -35,12 +40,24 @@ export class MenuScene extends Phaser.Scene {
       fontFamily: FONT, fontSize: `${compact ? 20 : 28}px`, fontStyle: 'italic', color: '#f0c850', stroke: '#2a1f2d', strokeThickness: 5, resolution: 2,
     }).setOrigin(0.5);
 
+    // The menu has its own settings sheet, with the same buttons as the pause menu (rebuilt with the layout).
+    this.sheet = new SheetPanel(this, (id) => {
+      if (id === 'close') this.sheet.hide();
+      else if (settings.act(id)) {
+        if (id === 'set-test') this.game.events.emit('sfx', 'complete');
+        this.sheet.show(settingsSheet(settings.get()));
+      }
+    }, 30);
+
     const store = browserStore();
     const saved = store ? readSave(store) : ({ status: 'none' } as const);
     const bw = Math.min(320, width - 48);
-    const bh = compact ? 44 : 56;
-    const gap = bh + 12;
-    let y = height * (compact ? 0.42 : 0.46);
+    // On a short screen the buttons squeeze together so the last one never runs off the bottom.
+    const count = 4 + (saved.status === 'invalid' ? (saved.backup ? 2 : 1) : 0);
+    const startY = height * (compact ? 0.36 : 0.46);
+    const gap = Math.min((compact ? 44 : 56) + 12, (height - (saved.status === 'invalid' ? 78 : 48) - startY) / (count - 0.5));
+    const bh = Math.max(32, Math.min(compact ? 44 : 56, gap - 8));
+    let y = startY;
 
     const note = (text: string, color = '#ffd9a0') =>
       this.add.text(cx, height - 22, text, { fontFamily: FONT, fontSize: '15px', color, align: 'center', resolution: 2, wordWrap: { width: width - 32 } }).setOrigin(0.5, 1);
@@ -62,10 +79,22 @@ export class MenuScene extends Phaser.Scene {
       if (entered === null) return;
       this.scene.start('Game', { seed: entered.trim() || DEFAULT_SEED, fresh: true });
     }, { color: 0x4f78b0 });
+    y += gap;
+
+    makeButton(this, cx, y, bw, bh, 'Settings', () => this.sheet.show(settingsSheet(settings.get())), { color: 0x4a5a8a });
 
     if (saved.status === 'invalid') {
-      note(`Your saved game could not be loaded: ${saved.reason}`);
-      makeButton(this, cx, y + gap, bw, bh, 'Delete damaged save', () => {
+      note(`Your saved game could not be loaded: ${saved.reason}${saved.backup ? ' A copy from the start of your last day is available.' : ''}`);
+      let by = y + gap;
+      if (saved.backup) {
+        makeButton(this, cx, by, bw, bh, 'Restore the last day\'s copy', () => {
+          const restored = store ? restoreBackup(store) : null;
+          if (restored) this.scene.start('Game', { seed: restored.seed, save: restored });
+          else this.layout();
+        }, { fontSize: 18 });
+        by += gap;
+      }
+      makeButton(this, cx, by, bw, bh, 'Delete damaged save', () => {
         if (store) clearSave(store);
         this.layout();
       }, { color: 0x97402f, fontSize: 18 });

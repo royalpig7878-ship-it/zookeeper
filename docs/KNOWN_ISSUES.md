@@ -1,9 +1,19 @@
 # Known Issues
 
+## Milestone 11 gaps
+- **The sound has never been heard by a person.** It is made in the browser with Web Audio (no files). I checked that it starts after a touch, plays the effects, limits how many play at once, ramps the rain and schedules the music without errors, and measured the output level (peaks about 0.35 for the task chime, 0.15 for a click and 0.19 for the music, where 1.0 is full scale) after the first version proved far too quiet to hear. I cannot judge how it sounds. Settings has a Test sound button. Volumes and the music are likely to need adjusting by ear. There is no footstep variety per ground type, no mower or boat engine sound, and no music change for story moments.
+- **Art is still first-pass, drawn in code.** Newborns are the adult picture shrunk, the lying-down poses are rough and water does not animate. Real final art would need an artist or licensed assets (record them in the asset catalog).
+- **No large-text option.** Text size is fixed. The settings offer larger controls, left-handed layout, reduced motion, numbers on the bars and sound controls, but not bigger text or a high-contrast theme. Screen readers cannot read a game drawn on a canvas.
+- **No offline play.** There is a web app manifest and icons (so a phone can add it to the home screen full-screen), but no service worker, so it needs a connection to load.
+- The save backup is a single copy from the start of the last day (or the last quit). There is no export or import of saves between devices.
+- Settings are one set per device, not per player.
+- The sheets (settings, report) are scrollable text with buttons; on a very short phone the text area is small.
+- The portrait note ("turn your phone sideways") only shows on narrow portrait screens, and the game does not lock the orientation (a browser cannot always do that).
+- The safe-area margins come from the browser's `env(safe-area-inset-*)`. They were read correctly (zero) on a normal screen but not checked on a real notched phone.
+
 ## Untested
 - Real phone / tablet devices (only an emulated 844x390 browser viewport was checked).
 - Multi-touch (joystick while pressing the action button) has not been tried on a real touchscreen.
-- iOS Safari safe-area insets: margins are fixed values, not `env(safe-area-inset-*)`.
 - Playing offline after install (no service worker yet).
 
 ## Incomplete / placeholder
@@ -23,10 +33,9 @@
 - Elephant art is a first pass (single side view, five poses).
 - Pixel art is functional first-pass art drawn in code; final art is Milestone 11.
 - Water is a still tile (no animation).
-- No audio.
 - Only one hand-designed zoo; seed only changes decoration (full generator is Milestone 5).
 - The `prompt()` box for entering a seed is basic.
-- Production bundle is ~1.2 MB (330 KB gzipped) because it includes all of Phaser.
+- The game is about 1.4 MB (400 KB gzipped) because it includes all of Phaser. It is split in two files so a phone can keep Phaser between updates.
 
 ## Milestone 10 gaps
 - Numbers are first guesses: how often animals conceive (a 16% chance on a good day, at most one pregnancy at a time), gestation and growth days, how fond a pair must be, how much the weather changes thirst. None were tuned by long play, so breeding may be too rare or too common.
@@ -34,25 +43,22 @@
 - Only mothers and fathers who are in the same habitat can breed. There is no moving animals between habitats, no sending young away and no maximum for the whole zoo beyond each habitat's limit, so a zoo that is cared for well slowly fills each habitat.
 - Weather affects looks, thirst and the amount of leaves and branches. It does not affect animal behaviour (they do not shelter from rain) or the lighting of the staff room.
 - Time away catches up with one calculation, not a full simulation: relationships, pregnancy and growth do not progress while you are away (they follow game days, which only pass when you end a shift).
-- The "Welcome back" note appears only when you continue a saved game, not when you switch back to a tab that was left open.
-- Random happenings are a short list and can repeat.
+- Random happenings are a short list (eight) and can repeat.
 
 ## Milestone 9 gaps
 - Only Chapters 1 and 2 exist. Chapter 2's writing is a short first draft, and its first steps depend on the first illness (Buster's, on day 2). Chapters 3 to 6 (a new arrival, the storm, new life, Margaret's last letter) are not written.
-- Daniel has no art of his own (the keeper sprite with an orange tint) and stands in one place. Maya, Leo and Dr. Shah speak only through the noticeboard and the vet menus, not as people you can walk up to.
+- Daniel and Dr. Shah have their own colours now, but they are the keeper's drawing recoloured, and Daniel stands in one place. Maya and Leo are only on the noticeboard.
 - The goal line is one short sentence; there is no quest log or map marker. It points at the first open step even if you are partway through a later one.
 - The ending letter is delivered in the day summary, not as something you find by exploring.
 - Steps are matched to history events, so a step done before the story could notice it (for example in an old save) is counted as done.
 - A goal that changes while you are in the staff room is announced only on the next screen you open; the report shows the current goal.
 
 ## Milestone 8 gaps
-- Dr. Shah has no art of her own: she is the keeper's sprite with a blue tint. The clinic is a door with a menu, not an interior, and there is no dialogue tree beyond a few lines.
 - Condition numbers (how often illness starts, recovery days, how much neglect matters) are first guesses and have not been balanced by long play.
 - Only one animal is ill at a time, by design, so it never overwhelms a new player. Later chapters might want outbreaks.
 - Medicine is a single generic bag item ("Prescribed medicine"), not a different picture per condition. Doses are given from the Health sheet, not by walking to the feeding hatch.
 - There is no separate vet task in the daily task list; the report has a VET CARE section instead, so unfinished vet care does not block ending a shift.
 - Symptoms are shown by a bubble and behaviour (slower, pacing); there are no special "limping" or "scratching" sprites.
-- On narrow screens the Health and History buttons sit over the second line of the inspect panel's subtitle.
 - Saves from before Milestone 8 start with no medical history; the first case is Buster's upset tummy on day 2, or from then on by chance.
 
 ## Milestone 7 gaps

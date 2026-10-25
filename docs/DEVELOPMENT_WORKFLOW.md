@@ -18,7 +18,7 @@ Status legend: **Done** (built and tested), **Partial**, **Not started**.
 | 8 | Veterinary Care | Done (see checklist; real-phone test still pending) |
 | 9 | Story | Done (Chapter 1 complete and playable; Chapter 2 is a first draft; see checklist; real-phone test still pending) |
 | 10 | Living Zoo | Done (see checklist; real-phone test and long-play balance still pending) |
-| 11 | Polish | Not started |
+| 11 | Polish | Done as far as can be done without a real phone and a real artist (see checklist and the honest notes) |
 
 ## Milestone 1 checklist
 
@@ -173,6 +173,20 @@ Honest notes: Chapter 2's writing is a short first draft. Daniel is the keeper s
 
 Honest notes: pregnancy and birth were forced in the browser by calling the daily step with chosen days, because the real chance is small (about one a fortnight at best). The numbers (gestation, growth days, chance, relations needed) are first guesses and were not balanced by long play. The newborn is the adult picture drawn smaller, not a special baby sprite. Otters were left out, so a zoo has at most four kinds of animal besides Buster.
 
+## Milestone 11 checklist
+
+- [x] Settings (`core/settings.ts`, a settings sheet in the menu and the pause menu): music and effects volume, mute, left-handed layout, large controls, reduced motion, numbers on bars. Stored under their own key, validated field by field, applied at once
+- [x] Sound (`audio/`): a Web Audio engine with no files: wandering pentatonic music, ten effects, rain and thunder tied to the weather, birds in daylight. Starts after the first touch, limits simultaneous sounds, separate music and effects volumes, never throws
+- [x] Accessibility: reduced motion, numbers as well as colours on the animal bars, large and left-handed controls, buttons that wrap instead of shrinking. Honest gaps: no large text or high-contrast theme
+- [x] Save recovery: a second copy at the start of every day and on quitting, offered from the menu when the main save is damaged
+- [x] Mobile: safe-area insets, portrait note, short-screen menu and sheet layouts, manifest and icons, no text selection or tap highlight, a Phaser chunk split for caching
+- [x] Performance: measured in the browser at about 0.02 ms for a whole game update with six animals and 460 objects, 60 frames per second; nothing is simulated per missed second
+- [x] Known issues fixed on the way: tab-return catch-up, the cramped inspect panel, more random happenings, own looks for Daniel and Dr. Shah
+- [x] Production build: `npm run verify` (type check, tests, build) and the GitHub Pages workflow
+- [x] 250 automated tests (16 new: settings, sound plan, save recovery). Browser (812 by 375 landscape phone size): menu and settings fit, left-handed and large controls move the joystick and button, the sound engine starts and plays without errors, the Welcome back note on returning to a tab, a damaged save restored from its copy, Daniel's new look
+
+Honest notes: nobody has listened to the sound or held the game on a phone, so those two are the first things to check. Final art is not done; it needs an artist or licensed assets.
+
 ## Next steps
 
-Milestone 11: polish (final art, animations, sound, settings, performance, accessibility, save recovery, mobile testing, production build). Earlier note for reference: Milestone 10 was the living zoo. Between-shift simulation, relationships, baby animals, growth, breeding rules, weather and random scenarios. Earlier note for reference: Milestone 9 was story chapters. Earlier note for reference: seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)
+All eleven milestones are built. The most useful next work is playing it on a real phone and noting what feels wrong, then tuning (see KNOWN_ISSUES), writing Chapters 3 to 6, and final art. Earlier note for reference: Milestone 11 was polish (final art, animations, sound, settings, performance, accessibility, save recovery, mobile testing, production build). Earlier note for reference: Milestone 10 was the living zoo. Between-shift simulation, relationships, baby animals, growth, breeding rules, weather and random scenarios. Earlier note for reference: Milestone 9 was story chapters. Earlier note for reference: seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)

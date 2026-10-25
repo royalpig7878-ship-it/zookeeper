@@ -1,0 +1,16 @@
+{
+  "name": "Zookeeper: A Living Zoo",
+  "short_name": "Zookeeper",
+  "description": "A cozy zookeeper life sim: care for animals, tend the park and uncover the stories of Willow Creek.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#1c2b1c",
+  "theme_color": "#2d4a2b",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

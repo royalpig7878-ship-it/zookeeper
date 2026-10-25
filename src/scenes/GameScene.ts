@@ -18,6 +18,7 @@ import { ITEMS, RECIPES, feedCheck } from '../data/items';
 import { TRAITS } from '../data/traits';
 import { NOTE_EVENT_TEXT } from '../data/notes';
 import { AnimalSave, Facing, SaveData, browserStore, writeSave } from '../core/save';
+import { settings } from '../core/settingsInstance';
 import { Rng } from '../core/rng';
 import { MessSpots, Pile, countKind, initialPiles, spawnOvernight, validPiles } from '../systems/cleaning';
 import { Clock, SHIFT_END, advanceClock, daylight, formatTime, newClock, phaseOf, startNextDay } from '../systems/clock';
@@ -89,6 +90,7 @@ export class GameScene extends Phaser.Scene {
   private py = 0;
   private facing: Facing = 'down';
   private walkTime = 0;
+  private stepClock = 0;
   private discovered = new Set<string>();
   private nearby: Interactable | undefined;
   private nearbyAnimal: AnimalView | undefined;
@@ -231,7 +233,7 @@ export class GameScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, L.width * TILE, L.height * TILE);
-    cam.startFollow(this.player, true, 0.2, 0.2);
+    cam.startFollow(this.player, true, settings.get().reducedMotion ? 1 : 0.2, settings.get().reducedMotion ? 1 : 0.2);
     this.applyZoom();
     this.scale.on('resize', this.applyZoom, this);
     if (this.arriveAt) cam.fadeIn(250);
@@ -248,7 +250,18 @@ export class GameScene extends Phaser.Scene {
     ev.on('ui:inspect-closed', onInspectClosed);
     ev.on('ui:open', this.openPanel, this);
     ev.on('ui:sheet-action', this.onSheetAction, this);
-    const onHidden = () => document.hidden && this.save(false);
+    // Leaving the tab saves; coming back after a good while gives the animals their rest, just like continuing a save.
+    let hiddenAt = 0;
+    const onHidden = () => {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+        this.save(false);
+      } else if (hiddenAt > 0) {
+        const away = awayMinutes(hiddenAt, Date.now());
+        hiddenAt = 0;
+        if (away !== null && !this.transitioning && !this.registry.get('modal')) this.catchUpAway(away);
+      }
+    };
     document.addEventListener('visibilitychange', onHidden);
     this.events.once('shutdown', () => {
       ev.off('ui:interact', this.interact, this);
@@ -566,6 +579,7 @@ export class GameScene extends Phaser.Scene {
         this.game.events.emit('ui:progress', { label: this.job.label, fraction: 1 - Math.max(0, this.job.remaining) / this.job.total });
         if (this.job.remaining <= 0) {
           const done = this.job.done;
+          this.game.events.emit('sfx', 'work');
           this.job = null;
           this.game.events.emit('ui:progress', null);
           done();
@@ -587,6 +601,11 @@ export class GameScene extends Phaser.Scene {
       if (Math.abs(mx) > Math.abs(my)) this.facing = mx < 0 ? 'left' : 'right';
       else this.facing = my < 0 ? 'up' : 'down';
       this.walkTime += dt;
+      this.stepClock += dt;
+      if (this.stepClock > 0.34 && this.mode === 'walk') {
+        this.stepClock = 0;
+        this.game.events.emit('sfx', 'step');
+      }
     } else {
       this.walkTime = 0;
     }
@@ -969,7 +988,10 @@ export class GameScene extends Phaser.Scene {
   /** Record a task event, and celebrate anything it finished. */
   private taskEvent(event: TaskEvent, amount = 1) {
     const finished = applyTaskEvent(this.tasks, event, amount);
-    if (finished.length) this.toast(`Task complete: ${finished[0].title.replace(/ \(.*\)$/, '')}`);
+    if (finished.length) {
+      this.toast(`Task complete: ${finished[0].title.replace(/ \(.*\)$/, '')}`);
+      this.game.events.emit('sfx', 'complete');
+    }
     const s = summary(this.tasks);
     if (s.requiredDone === s.requiredTotal && !this.allDoneToldToday && finished.length) {
       this.allDoneToldToday = true;
@@ -1043,6 +1065,7 @@ export class GameScene extends Phaser.Scene {
 
   private enterStaffRoom() {
     this.transitioning = true;
+    this.game.events.emit('sfx', 'door');
     this.game.events.emit('ui:context', null);
     const snap = this.currentSave();
     this.save(false);
@@ -1513,7 +1536,7 @@ export class GameScene extends Phaser.Scene {
       lines.push(`New mess overnight: ${newDung} waste, ${newLeaves} leaf piles.`);
       if (regrown.length > 0) lines.push(`Some of the lawn has grown back (${regrown.length} patches). The mower is fully charged.`);
       lines.push(`Day ${this.clock.day} starts at ${formatTime(this.clock.minutes)}. Your shift runs until ${formatTime(SHIFT_END)}.`);
-      this.save(false);
+      this.save(false, true); // a fresh second copy at the start of every day
 
       this.game.events.emit('ui:fade', { to: 0, duration: 900 });
       this.transitioning = false;
@@ -1538,7 +1561,7 @@ export class GameScene extends Phaser.Scene {
   /** Show today's weather and make animals feel it (a hot day means more thirst). */
   private applyWeather() {
     for (const rt of this.habitats.values()) rt.world.thirstMul = this.weather.thirstMul;
-    this.game.events.emit('ui:weather', { dim: this.weather.dim, rain: this.weather.rain, fog: this.weather.fog });
+    this.game.events.emit('ui:weather', { dim: this.weather.dim, rain: this.weather.rain, fog: this.weather.fog, kind: this.weather.kind });
   }
 
   /** What was done for each habitat today, in the terms the life-cycle rules use. */
@@ -1624,6 +1647,7 @@ export class GameScene extends Phaser.Scene {
     this.record({ category: 'milestone', animalId: st.id, key: 'first-birth', text: `The first young animal of your time here was born: ${st.name}, a ${young} to ${m.name}.` });
     this.record({ category: 'milestone', animalId: st.id, key: `birth-${st.id}`, text: `${m.name} had a ${young}: ${st.name}.` });
     lines.push(`${m.name} had a ${young}! Welcome, ${st.name}.`);
+    this.game.events.emit('sfx', 'born');
   }
 
   private applyScenario(s: (typeof SCENARIOS)[number]): string | null {
@@ -1652,8 +1676,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Coming back after a while: the animals rested and ate a little, a little mess appeared. Nothing was lost. */
-  private catchUpAway() {
-    const minutes = awayMinutes(this.startSave?.savedAt ?? 0, Date.now());
+  private catchUpAway(awayFor?: number) {
+    const minutes = awayFor ?? awayMinutes(this.startSave?.savedAt ?? 0, Date.now());
     if (minutes === null) return;
     const lines: string[] = [`You were away for ${describeAway(minutes)}. The day has not moved on, and nobody went without.`, '#THE ANIMALS'];
     for (const rt of this.habitats.values()) {
@@ -1695,7 +1719,7 @@ export class GameScene extends Phaser.Scene {
     if (!spot) return;
     const px = tileCenter(spot.x);
     const py = tileCenter(spot.y);
-    this.add.image(px, py, 'player_down_0').setOrigin(0.5, 44 / 48).setTint(0xf0b070).setDepth(py);
+    this.add.image(px, py, 'npc_daniel_down_0').setOrigin(0.5, 44 / 48).setDepth(py);
     this.danielSpot = { id: 'daniel', x: spot.x, y: spot.y, label: 'TALK TO DANIEL', title: '', text: [], action: 'talk', range: 64 };
     this.rebuildInteractables();
   }
@@ -1761,7 +1785,7 @@ export class GameScene extends Phaser.Scene {
     if (visit && gate) {
       const x = tileCenter(gate.x) + 16;
       const y = tileCenter(gate.y) + 10;
-      this.vetView = this.add.image(x, y, 'player_down_0').setOrigin(0.5, 44 / 48).setTint(0xcfe0ff).setDepth(y);
+      this.vetView = this.add.image(x, y, 'npc_shah_down_0').setOrigin(0.5, 44 / 48).setDepth(y);
       this.vetSpot = { id: 'vet-visit', x: gate.x, y: gate.y, label: 'ASSIST DR. SHAH', title: '', text: [], action: 'vetvisit', range: 80, habitat: visit.habitatId };
     }
     if (this.piles) this.rebuildInteractables();
@@ -1962,10 +1986,10 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private save(announce: boolean): boolean {
+  private save(announce: boolean, backup = false): boolean {
     this.sinceSave = 0;
     const store = browserStore();
-    const ok = !!store && writeSave(store, this.currentSave());
+    const ok = !!store && writeSave(store, this.currentSave(), backup);
     if (announce) this.toast(ok ? 'Game saved' : 'Could not save: storage is unavailable');
     return ok;
   }
@@ -1975,7 +1999,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private quitToMenu() {
-    this.save(false);
+    this.save(false, true);
     this.scene.start('Menu');
   }
 }

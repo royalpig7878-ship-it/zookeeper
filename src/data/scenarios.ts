@@ -45,6 +45,21 @@ export const SCENARIOS: ScenarioDef[] = [
     text: 'Dr. Shah did her routine rounds overnight. Nobody needed treatment, and everyone got a once-over.',
     effect: { kind: 'health', amount: 3 },
   },
+  {
+    id: 'birdwatchers', title: 'Birdwatchers', weight: 2, minDay: 4,
+    text: 'A group of birdwatchers spent the morning by the pond. They were so quiet and patient that the animals barely noticed them, and they left a kind note.',
+    effect: { kind: 'mood', amount: 4 },
+  },
+  {
+    id: 'hay-delivery', title: 'Early hay delivery', weight: 2, minDay: 3,
+    text: 'Leo found a bale of fresh hay that came early. He broke some off and left it in your bag.',
+    effect: { kind: 'gift', item: 'hay', qty: 2 },
+  },
+  {
+    id: 'visiting-artist', title: 'Visiting artist', weight: 1, minDay: 5,
+    text: 'An artist sketched the animals all afternoon. One of them held perfectly still for a portrait.',
+    effect: { kind: 'bond', amount: 2 },
+  },
 ];
 
 /** At least this many days between random happenings. */

@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify": "tsc --noEmit && vitest run && vite build",
+    "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0"

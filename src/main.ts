@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { AudioEngine } from './audio/engine';
+import { settings } from './core/settingsInstance';
 import { BootScene } from './scenes/BootScene';
 import { GameScene } from './scenes/GameScene';
 import { MenuScene } from './scenes/MenuScene';
@@ -41,7 +43,14 @@ function start(tries = 0) {
     input: { activePointers: 3 },
     scene: [BootScene, MenuScene, GameScene, StaffRoomScene, UIScene],
   });
-  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__game = game; // for testing in the browser
+  const audio = new AudioEngine(game.events, settings);
+  audio.start(); // sound begins after the first touch or key press
+  if (import.meta.env.DEV) {
+    const w = window as unknown as Record<string, unknown>;
+    w.__game = game; // for testing in the browser
+    w.__settings = settings;
+    w.__audio = audio;
+  }
 }
 
 start();

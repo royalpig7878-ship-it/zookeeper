@@ -35,6 +35,14 @@ Pure modules in `src/systems/` (all unit-tested without Phaser):
 
 World freezes (`registry.paused`) behind the pause menu and any sheet. Dialogues and the inspect panel do not freeze it.
 
+## Polish (Milestone 11)
+- `core/settings.ts` is pure: the `Settings` shape, `sanitizeSettings`, `applySettingAction` (what each settings button does) and a small store that saves on every change and tells listeners. `core/settingsInstance.ts` is the one shared copy. `systems/sheets.ts` builds the settings sheet, and the sheet component now wraps a long row of buttons onto more lines.
+- `audio/plan.ts` is pure (the music scale, which background sounds fit the weather and hour, a limit on simultaneous sounds); `audio/engine.ts` makes the sound with Web Audio and listens to game events (`sfx`, `ui:weather`, `ui:daylight`, `ui:toast`). Scenes only emit `this.game.events.emit('sfx', name)`.
+- `core/save.ts` gained a backup key, `readBackup` and `restoreBackup`; `writeSave` keeps a second copy only when asked (end of day, quit).
+- `core/safeArea.ts` reads the notch and corner insets once. The UI scene applies them, and the left-handed and large-controls settings, in `layout()`.
+- `art/pixelArt.ts` draws people from a `Look` (colours), so Daniel and Dr. Shah are the keeper drawing in other colours.
+- The web app manifest and icons are in `public/` (the icons are made by `scripts/make-icons.mjs`); `vite.config.ts` puts Phaser in its own chunk.
+
 ## The living zoo (Milestone 10)
 - Pure logic, no Phaser: `systems/life.ts` (sexes, stages, `pairBlockers` which explains why a pair cannot breed, `maybeConceive`, `dueBirths`, `makeNewborn`, `familyOf`, `validateLife`), `systems/weather.ts` (`weatherFor(seed, day)`), `systems/offline.ts` (`awayMinutes` with its threshold and cap, `pickScenario`), `data/scenarios.ts`. Per-species breeding rules are the optional `life` block in `data/animals/species.ts` (elephants have none).
 - Everything is decided once at the start of a day, from `Rng` seeded with the zoo seed and the day (`seed:conceive:day`, `seed:weather:day`, `seed:scenario:day`), so it is repeatable and there are no loops over time.
@@ -138,4 +146,4 @@ The layout is **not** saved; it is rebuilt from the seed. Saves are validated be
 
 ## Testing
 `npm test`: layout reproducibility, reachability of every interactable and the dock/gate for several seeds, building overlap, collision, save round-trip and invalid-save handling.
-In dev builds the running scene is exposed as `window.__zoo` and the Phaser game as `window.__game` for debugging.
+In dev builds the running scene is exposed as `window.__zoo`, the Phaser game as `window.__game`, and the settings and sound engine as `window.__settings` and `window.__audio`, for debugging. `npm run verify` runs the type check, the tests and a production build.

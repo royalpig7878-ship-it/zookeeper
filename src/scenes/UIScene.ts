@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 import { SheetData, SheetPanel } from '../ui/sheet';
+import { settings } from '../core/settingsInstance';
+import { Insets, readSafeArea } from '../core/safeArea';
+import { settingsSheet } from '../systems/sheets';
 import { COLORS, FONT, drawPanel, makeButton } from '../ui/widgets';
 
 export interface TimeInfo {
@@ -40,7 +43,12 @@ export class UIScene extends Phaser.Scene {
   private stickKnob!: Phaser.GameObjects.Image;
   private stickPointerId: number | null = null;
   private stickOrigin = new Phaser.Math.Vector2();
-  private readonly stickRadius = 56;
+  private get stickRadius() {
+    return 56 * (settings.get().bigControls ? 1.3 : 1);
+  }
+  private safe: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
+  private inspectNums: Phaser.GameObjects.Text[] = [];
+  private unsubSettings: (() => void) | null = null;
 
   private actionBtn!: Phaser.GameObjects.Container;
   private actionLabel!: Phaser.GameObjects.Text;
@@ -101,6 +109,7 @@ export class UIScene extends Phaser.Scene {
     this.dialog = null;
     this.paused = false;
     this.context = null;
+    this.safe = readSafeArea();
 
     this.progress = null;
     // Night/dusk tint over the whole world (below every other UI element).
@@ -124,6 +133,12 @@ export class UIScene extends Phaser.Scene {
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerup', this.onPointerUp, this);
     this.input.on('pointerupoutside', this.onPointerUp, this);
+    // Changing a setting takes effect straight away.
+    this.unsubSettings = settings.onChange(() => {
+      this.layout();
+      this.setWeather(this.weather);
+    });
+    this.events.once('shutdown', () => this.unsubSettings?.());
 
     const kb = this.input.keyboard!;
     kb.on('keydown-E', this.onActionKey, this);
@@ -183,12 +198,17 @@ export class UIScene extends Phaser.Scene {
   private layout() {
     const { width, height } = this.scale;
     const m = this.margin;
+    const sf = this.safe;
+    const big = settings.get().bigControls;
+    const lefty = settings.get().leftHanded;
     this.restStick();
-    this.actionBtn.setPosition(width - m - 90, height - m - 50);
-    this.menuBtn.setPosition(width - m - 28, m + 28);
-    this.tasksBtn.setPosition(width - m - 28 - 64, m + 28);
-    this.bagBtn.setPosition(width - m - 28 - 128, m + 28);
-    this.clockText.setPosition(m, m);
+    // The action button goes on the side away from the joystick, and both stay out of the notch and corners.
+    this.actionBtn.setScale(big ? 1.25 : 1);
+    this.actionBtn.setPosition(lefty ? m + sf.left + 90 * (big ? 1.25 : 1) : width - m - sf.right - 90 * (big ? 1.25 : 1), height - m - sf.bottom - 50 * (big ? 1.25 : 1));
+    this.menuBtn.setPosition(width - m - sf.right - 28, m + sf.top + 28);
+    this.tasksBtn.setPosition(width - m - sf.right - 28 - 64, m + sf.top + 28);
+    this.bagBtn.setPosition(width - m - sf.right - 28 - 128, m + sf.top + 28);
+    this.clockText.setPosition(m + sf.left, m + sf.top);
     this.placeHud();
     this.toast.setPosition(width / 2, m + 56);
     this.dusk.setSize(width, height);
@@ -226,7 +246,11 @@ export class UIScene extends Phaser.Scene {
     pause.add(makeButton(this, width / 2, y0 + gap, bw, bh, 'Save Game', () => {
       this.game.events.emit('ui:save', true);
     }).container);
-    pause.add(makeButton(this, width / 2, y0 + gap * 2, bw, bh, 'Save & Main Menu', () => {
+    pause.add(makeButton(this, width / 2, y0 + gap * 2, bw, bh, 'Settings', () => {
+      this.setPaused(false);
+      this.openSheet(settingsSheet(settings.get()));
+    }, { color: 0x4a5a8a }).container);
+    pause.add(makeButton(this, width / 2, y0 + gap * 3, bw, bh, 'Save & Main Menu', () => {
       this.game.events.emit('ui:quit');
     }, { color: 0x97402f }).container);
   }
@@ -246,6 +270,7 @@ export class UIScene extends Phaser.Scene {
     this.actionBtn.on('pointerout', () => this.drawAction(false));
     this.actionBtn.on('pointerup', () => {
       this.drawAction(false);
+      this.game.events.emit('sfx', 'click');
       this.triggerAction();
     });
     this.actionBtn.setVisible(false);
@@ -288,6 +313,11 @@ export class UIScene extends Phaser.Scene {
 
     this.sheet = new SheetPanel(this, (id) => {
       if (id === 'close') this.closeSheet();
+      else if (settings.act(id)) {
+        // settings buttons redraw the settings sheet
+        if (id === 'set-test') this.game.events.emit('sfx', 'complete');
+        this.sheet.show(settingsSheet(settings.get()));
+      }
       else this.game.events.emit('ui:sheet-action', id);
     });
   }
@@ -303,8 +333,8 @@ export class UIScene extends Phaser.Scene {
     this.weather = w;
     this.weatherDim.setFillStyle(w.fog ? 0xdfe6e8 : 0x2a3140, w.fog ? 0.28 : w.dim);
     const { width, height } = this.scale;
-    this.drops = w.rain ? Array.from({ length: 70 }, () => ({ x: Math.random() * width, y: Math.random() * height, s: 0.7 + Math.random() * 0.6 })) : [];
-    if (!w.rain) this.rainGfx.clear();
+    this.drops = w.rain && !settings.get().reducedMotion ? Array.from({ length: 70 }, () => ({ x: Math.random() * width, y: Math.random() * height, s: 0.7 + Math.random() * 0.6 })) : [];
+    if (!w.rain || settings.get().reducedMotion) this.rainGfx.clear();
   }
 
   update(_time: number, delta: number) {
@@ -332,10 +362,12 @@ export class UIScene extends Phaser.Scene {
   private placeHud() {
     const m = this.margin;
     const { width } = this.scale;
-    this.statusText.setPosition(m, m + 58);
+    const x = m + this.safe.left;
+    const y = m + this.safe.top + 58;
+    this.statusText.setPosition(x, y);
     const below = this.statusText.visible ? this.statusText.height + 6 : 0;
-    this.objectiveText.setWordWrapWidth(Math.max(150, Math.min(320, width - 2 * m - 210)));
-    this.objectiveText.setPosition(m, m + 58 + below);
+    this.objectiveText.setWordWrapWidth(Math.max(150, Math.min(320, width - 2 * m - 210 - this.safe.left - this.safe.right)));
+    this.objectiveText.setPosition(x, y + below);
   }
 
   private setTime(t: TimeInfo) {
@@ -488,6 +520,8 @@ export class UIScene extends Phaser.Scene {
     this.inspectHint = t(14, '#b8c8a8').setOrigin(1, 1);
     this.inspectLabels = [];
     for (let i = 0; i < 6; i++) this.inspectLabels.push(t(16, COLORS.text, true));
+    this.inspectNums = [];
+    for (let i = 0; i < 6; i++) this.inspectNums.push(t(14, '#ffffff', true).setOrigin(1, 0));
     const historyBtn = makeButton(this, 0, 0, 112, 38, 'History', () => {
       this.closeInspect();
       this.game.events.emit('ui:open', 'history');
@@ -499,7 +533,7 @@ export class UIScene extends Phaser.Scene {
     }, { fontSize: 16, color: 0xb8402f });
     this.inspectVetBtn = vetBtn.container;
     this.inspectPanel = this.add.container(0, 0, [
-      this.inspectGfx, this.inspectTitle, this.inspectSub, this.inspectTips, this.inspectHint, ...this.inspectLabels, this.inspectHistoryBtn, this.inspectVetBtn,
+      this.inspectGfx, this.inspectTitle, this.inspectSub, this.inspectTips, this.inspectHint, ...this.inspectLabels, ...this.inspectNums, this.inspectHistoryBtn, this.inspectVetBtn,
     ]).setDepth(12).setVisible(false);
     this.inspectPanel.on('pointerup', () => this.closeInspect());
   }
@@ -514,7 +548,7 @@ export class UIScene extends Phaser.Scene {
     this.inspectPanel.setSize(w, h);
     this.inspectPanel.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
     this.inspectTitle.setPosition(18, 10);
-    this.inspectSub.setPosition(18, 44);
+    this.inspectSub.setPosition(18, 56);
     this.inspectHint.setPosition(w - 14, h - 8);
     this.inspectHistoryBtn.setPosition(w - 76, 32);
     this.inspectVetBtn.setPosition(w - 76 - 116, 32);
@@ -545,7 +579,8 @@ export class UIScene extends Phaser.Scene {
     const traits = d.traits.length ? `${dot}${d.traits.join(', ')}` : '';
     this.inspectSub.setText(`${d.subtitle}${dot}${d.activity}${traits}`).setWordWrapWidth(w - 36);
     const rowH = h < 300 ? 21 : 24;
-    const top = 70;
+    const top = 84;
+    const showNumbers = settings.get().showNumbers;
     const barX = 90;
     const barW = w - barX - 22;
     d.bars.forEach((b, i) => {
@@ -553,6 +588,7 @@ export class UIScene extends Phaser.Scene {
       this.inspectLabels[i].setText(b.label).setPosition(18, y);
       g.fillStyle(0x000000, 0.45).fillRoundedRect(barX, y + 2, barW, 16, 6);
       g.fillStyle(b.color, 1).fillRoundedRect(barX, y + 2, Math.max(6, (barW * Math.max(0, Math.min(100, b.value))) / 100), 16, 6);
+      this.inspectNums[i].setText(showNumbers ? String(Math.round(b.value)) : '').setPosition(barX + barW - 6, y + 2).setStroke('#000000', 3);
     });
     const tipsY = top + d.bars.length * rowH + 8;
     this.inspectTips.setPosition(18, tipsY).setWordWrapWidth(w - 36).setText(['Care:', ...d.tips.map((t) => '- ' + t)].join('\n'));
@@ -562,17 +598,20 @@ export class UIScene extends Phaser.Scene {
 
   // ------------------------------------------------------------ joystick
   private restStick() {
-    const { height } = this.scale;
+    const { width, height } = this.scale;
     const m = this.margin;
+    const big = settings.get().bigControls ? 1.3 : 1;
     this.stickPointerId = null;
     this.registry.set('move', { x: 0, y: 0 });
-    this.stickBase.setPosition(m + 76, height - m - 76).setAlpha(0.3);
+    this.stickBase.setScale(big).setPosition(settings.get().leftHanded ? width - m - this.safe.right - 76 * big : m + this.safe.left + 76 * big, height - m - this.safe.bottom - 76 * big).setAlpha(0.3);
+    this.stickKnob.setScale(big);
     this.stickKnob.setPosition(this.stickBase.x, this.stickBase.y).setAlpha(0.4);
   }
 
   private onPointerDown(p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) {
     if (this.dialog || this.paused || this.inspectData || this.sheet.isOpen || over.length > 0) return;
-    if (p.x > this.scale.width * 0.55 || this.stickPointerId !== null) return;
+    const lefty = settings.get().leftHanded;
+    if ((lefty ? p.x < this.scale.width * 0.45 : p.x > this.scale.width * 0.55) || this.stickPointerId !== null) return;
     this.stickPointerId = p.id;
     this.stickOrigin.set(p.x, p.y);
     this.stickBase.setPosition(p.x, p.y).setAlpha(0.6);

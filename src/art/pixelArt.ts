@@ -376,7 +376,25 @@ function makeEntrance(scene: Phaser.Scene) {
 // ---------------------------------------------------------------- player
 export const PLAYER_FRAMES = 3;
 
-function drawPlayerFrame(c: Ctx, dir: 'down' | 'up' | 'side', frame: number) {
+/** What a person looks like: the keeper and the staff share one drawing with different colours. */
+interface Look {
+  skin: string; hair: string; shirt: string; shirtDark: string; pants: string; pantsDark: string; badge: string; cap: string | null;
+}
+
+const KEEPER_LOOK: Look = {
+  skin: PAL.skin, hair: PAL.hair, shirt: PAL.shirt, shirtDark: PAL.shirtDark, pants: PAL.pants, pantsDark: PAL.pantsDark, badge: PAL.gold, cap: '#d8d0b8',
+};
+
+/** Staff you can meet in the park. */
+export const NPC_LOOKS: Record<string, Look> = {
+  // Daniel Brooks: senior keeper, grey hair, an orange fleece and a tan cap
+  daniel: { ...KEEPER_LOOK, skin: '#e0b088', hair: '#9a9aa0', shirt: '#c87832', shirtDark: '#a05e22', pants: '#5a4a3a', pantsDark: '#483a2c', cap: '#8a6a40' },
+  // Dr. Priya Shah: a white coat, dark hair tied back, a teal stethoscope badge
+  shah: { ...KEEPER_LOOK, skin: '#c89870', hair: '#201820', shirt: '#f0f0f4', shirtDark: '#cfd4de', pants: '#3a4a6a', pantsDark: '#2e3a56', badge: '#3aa0a8', cap: null },
+};
+
+
+function drawPlayerFrame(c: Ctx, dir: 'down' | 'up' | 'side', frame: number, look: Look = KEEPER_LOOK) {
   const bob = frame === 0 ? 0 : 1;
   const step = frame === 1 ? -1 : frame === 2 ? 1 : 0;
   rect(c, 'rgba(0,0,0,0.2)', 7, 42, 18, 5); // shadow
@@ -385,52 +403,56 @@ function drawPlayerFrame(c: Ctx, dir: 'down' | 'up' | 'side', frame: number) {
   const legL = step < 0 ? 2 : 0;
   const legR = step > 0 ? 2 : 0;
   if (dir === 'side') {
-    outlined(c, PAL.pants, 11 + step * 3, legY, 8, 11 - Math.abs(step));
+    outlined(c, look.pants, 11 + step * 3, legY, 8, 11 - Math.abs(step));
     outlined(c, PAL.boots, 11 + step * 3, 40 - Math.abs(step), 8, 4);
-    outlined(c, PAL.pantsDark, 14 - step * 3, legY, 8, 11 - Math.abs(step));
+    outlined(c, look.pantsDark, 14 - step * 3, legY, 8, 11 - Math.abs(step));
     outlined(c, PAL.boots, 14 - step * 3, 40 - Math.abs(step), 8, 4);
   } else {
-    outlined(c, PAL.pants, 9, legY, 7, 11 - legL);
+    outlined(c, look.pants, 9, legY, 7, 11 - legL);
     outlined(c, PAL.boots, 9, 40 - legL, 7, 4);
-    outlined(c, PAL.pants, 16, legY, 7, 11 - legR);
+    outlined(c, look.pants, 16, legY, 7, 11 - legR);
     outlined(c, PAL.boots, 16, 40 - legR, 7, 4);
   }
   // torso
   const ty = 18 + bob;
-  outlined(c, PAL.shirt, dir === 'side' ? 10 : 8, ty, dir === 'side' ? 12 : 16, 15);
-  rect(c, PAL.shirtDark, dir === 'side' ? 11 : 9, ty + 11, dir === 'side' ? 10 : 14, 3);
-  rect(c, PAL.gold, dir === 'side' ? 15 : 14, ty + 2, 2, 2); // name badge
+  outlined(c, look.shirt, dir === 'side' ? 10 : 8, ty, dir === 'side' ? 12 : 16, 15);
+  rect(c, look.shirtDark, dir === 'side' ? 11 : 9, ty + 11, dir === 'side' ? 10 : 14, 3);
+  rect(c, look.badge, dir === 'side' ? 15 : 14, ty + 2, 2, 2); // name badge
   // arms
   if (dir === 'side') {
-    outlined(c, PAL.shirtDark, 13 + step * 2, ty + 2, 6, 11);
-    rect(c, PAL.skin, 14 + step * 2, ty + 11, 4, 3);
+    outlined(c, look.shirtDark, 13 + step * 2, ty + 2, 6, 11);
+    rect(c, look.skin, 14 + step * 2, ty + 11, 4, 3);
   } else {
-    outlined(c, PAL.shirtDark, 4, ty + 1, 5, 12);
-    outlined(c, PAL.shirtDark, 23, ty + 1, 5, 12);
-    rect(c, PAL.skin, 5, ty + 11, 3, 3);
-    rect(c, PAL.skin, 24, ty + 11, 3, 3);
+    outlined(c, look.shirtDark, 4, ty + 1, 5, 12);
+    outlined(c, look.shirtDark, 23, ty + 1, 5, 12);
+    rect(c, look.skin, 5, ty + 11, 3, 3);
+    rect(c, look.skin, 24, ty + 11, 3, 3);
   }
   // head
   const hy = 4 + bob;
-  outlined(c, PAL.skin, 9, hy, 14, 15);
+  outlined(c, look.skin, 9, hy, 14, 15);
   if (dir === 'down') {
     rect(c, PAL.black, 12, hy + 7, 2, 3);
     rect(c, PAL.black, 18, hy + 7, 2, 3);
     rect(c, '#e29a8a', 14, hy + 11, 4, 1);
-    rect(c, PAL.hair, 9, hy, 14, 5);
-    rect(c, PAL.hair, 9, hy, 2, 8);
-    rect(c, PAL.hair, 21, hy, 2, 8);
+    rect(c, look.hair, 9, hy, 14, 5);
+    rect(c, look.hair, 9, hy, 2, 8);
+    rect(c, look.hair, 21, hy, 2, 8);
   } else if (dir === 'up') {
-    rect(c, PAL.hair, 9, hy, 14, 14);
+    rect(c, look.hair, 9, hy, 14, 14);
   } else {
     rect(c, PAL.black, 19, hy + 7, 2, 3);
-    rect(c, PAL.hair, 9, hy, 14, 5);
-    rect(c, PAL.hair, 9, hy, 6, 10);
+    rect(c, look.hair, 9, hy, 14, 5);
+    rect(c, look.hair, 9, hy, 6, 10);
   }
-  // cap
-  outlined(c, '#d8d0b8', 8, hy - 3, 16, 6);
-  if (dir === 'side') rect(c, '#d8d0b8', 21, hy, 6, 2);
-  else if (dir === 'down') rect(c, PAL.outline, 10, hy + 2, 12, 1);
+  // cap (the keeper and Daniel wear one; Dr. Shah has her hair tied back instead)
+  if (look.cap) {
+    outlined(c, look.cap, 8, hy - 3, 16, 6);
+    if (dir === 'side') rect(c, look.cap, 21, hy, 6, 2);
+    else if (dir === 'down') rect(c, PAL.outline, 10, hy + 2, 12, 1);
+  } else {
+    rect(c, look.hair, 12, hy - 3, 8, 4); // a bun
+  }
 }
 
 function makePlayer(scene: Phaser.Scene) {
@@ -439,6 +461,13 @@ function makePlayer(scene: Phaser.Scene) {
       const [cv, c] = makeCanvas(32, 48);
       drawPlayerFrame(c, dir, f);
       addCanvas(scene, `player_${dir}_${f}`, cv);
+    }
+  }
+  for (const [id, look] of Object.entries(NPC_LOOKS)) {
+    for (let f = 0; f < PLAYER_FRAMES; f++) {
+      const [cv, c] = makeCanvas(32, 48);
+      drawPlayerFrame(c, 'down', f, look);
+      addCanvas(scene, `npc_${id}_down_${f}`, cv);
     }
   }
 }

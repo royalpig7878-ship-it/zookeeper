@@ -155,22 +155,31 @@ export class SheetPanel {
       y += descText.height + 6;
     }
 
-    // buttons along the bottom
+    // buttons along the bottom; a long list wraps onto more rows instead of squeezing the labels
     const bh = this.h < 330 ? 40 : 46;
     const by = this.h - bh / 2 - 12;
-    let bx = this.w - 14;
-    const btnW = Math.min(150, (this.w - 28) / Math.max(1, d.buttons.length) - 8);
-    for (const b of [...d.buttons].reverse()) {
-      const btn = makeButton(this.scene, bx - btnW / 2, by, btnW, bh, b.label, () => this.onAction(b.id), { fontSize: 17, color: b.color });
-      this.root.add(btn.container);
-      this.dynamic.push(btn.container);
-      bx -= btnW + 8;
+    const n = d.buttons.length;
+    const perRowMax = Math.max(1, Math.floor((this.w - 28 + 8) / (100 + 8)));
+    const rows = Math.max(1, Math.ceil(n / perRowMax));
+    const perRow = Math.ceil(n / rows);
+    const btnW = Math.min(150, (this.w - 28) / perRow - 8);
+    for (let r = 0; r < rows; r++) {
+      const row = d.buttons.slice(r * perRow, (r + 1) * perRow);
+      const rowY = by - (rows - 1 - r) * (bh + 8);
+      let bx = this.w - 14;
+      for (const bt of [...row].reverse()) {
+        const btn = makeButton(this.scene, bx - btnW / 2, rowY, btnW, bh, bt.label, () => this.onAction(bt.id), { fontSize: 17, color: bt.color });
+        this.root.add(btn.container);
+        this.dynamic.push(btn.container);
+        bx -= btnW + 8;
+      }
     }
+    const buttonsTop = by - bh / 2 - (rows - 1) * (bh + 8);
 
     // scrollable lines
     if (d.lines) {
       this.bodyTop = y;
-      this.viewH = Math.max(40, by - bh / 2 - 8 - y);
+      this.viewH = Math.max(40, buttonsTop - 8 - y);
       let ly = 0;
       for (const line of d.lines) {
         const heading = line.startsWith('#');
@@ -185,7 +194,7 @@ export class SheetPanel {
       this.maskGfx.clear().fillStyle(0xffffff).fillRect(x0 + 6, y0 + this.bodyTop, this.w - 12, this.viewH);
       this.applyScroll();
       if (this.contentH > this.viewH + 2) {
-        add(this.text(18, by - 8, 'drag or scroll for more', 13, '#f0c850', true));
+        add(this.text(this.w - 18, buttonsTop - 22, 'drag or scroll for more', 13, '#f0c850', true).setOrigin(1, 0).setBackgroundColor('#2d3b2a'));
       }
     } else {
       this.contentH = 0;
