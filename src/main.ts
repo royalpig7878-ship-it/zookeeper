@@ -61,17 +61,28 @@ function start(tries = 0) {
  * own resize signal can arrive early or not at all, so we re-measure a few times after each change.
  */
 function keepFitted(game: Phaser.Game) {
+  const gameBox = document.getElementById('game');
   const fit = () => {
-    // Match the page's own game area (it fills the whole screen), not the visual viewport, which on some
-    // phones leaves out the strip under the home bar and shows a coloured line there.
-    const box = document.getElementById('game')?.getBoundingClientRect();
-    const w = Math.max(2, Math.round(box ? box.width : window.innerWidth));
-    const h = Math.max(2, Math.round(box ? box.height : window.innerHeight));
+    // iPhones report the size late and sometimes wrongly just after a turn, so take the largest of the
+    // honest readings (never more than the screen itself) and give the game area exactly that size.
+    if (gameBox) {
+      gameBox.style.width = ''; // let the page decide first (it fills the screen), so an old size can never stick
+      gameBox.style.height = '';
+    }
+    const limitW = Math.max(screen.width, screen.height);
+    const readings = [window.innerHeight, document.documentElement.clientHeight, gameBox?.getBoundingClientRect().height ?? 0, window.visualViewport?.height ?? 0];
+    const widths = [window.innerWidth, document.documentElement.clientWidth, gameBox?.getBoundingClientRect().width ?? 0, window.visualViewport?.width ?? 0];
+    const h = Math.max(2, Math.round(Math.min(Math.max(...readings), limitW)));
+    const w = Math.max(2, Math.round(Math.min(Math.max(...widths), limitW)));
+    if (gameBox) {
+      gameBox.style.width = `${w}px`;
+      gameBox.style.height = `${h}px`;
+    }
     if (Math.round(game.scale.width) !== w || Math.round(game.scale.height) !== h) game.scale.resize(w, h);
   };
   const soon = () => {
     fit();
-    for (const ms of [120, 400, 1000]) window.setTimeout(fit, ms);
+    for (const ms of [100, 250, 500, 1000, 1600, 2500, 4000]) window.setTimeout(fit, ms);
   };
   window.addEventListener('resize', soon);
   window.addEventListener('orientationchange', soon);
