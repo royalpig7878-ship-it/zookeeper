@@ -196,6 +196,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private layout() {
+    this.safe = readSafeArea(); // the notch moves when the phone is turned, so measure again each time
     const { width, height } = this.scale;
     const m = this.margin;
     const sf = this.safe;

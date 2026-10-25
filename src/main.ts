@@ -43,6 +43,7 @@ function start(tries = 0) {
     input: { activePointers: 3 },
     scene: [BootScene, MenuScene, GameScene, StaffRoomScene, UIScene],
   });
+  keepFitted(game);
   const audio = new AudioEngine(game.events, settings);
   audio.start(); // sound begins after the first touch or key press
   if (import.meta.env.DEV) {
@@ -51,6 +52,29 @@ function start(tries = 0) {
     w.__settings = settings;
     w.__audio = audio;
   }
+}
+
+/**
+ * Keep the game exactly the size of the visible screen. Phones change the visible size after the page has
+ * loaded (full-screen mode hides the bars, turning the phone swaps width and height), and the browser's
+ * own resize signal can arrive early or not at all, so we re-measure a few times after each change.
+ */
+function keepFitted(game: Phaser.Game) {
+  const fit = () => {
+    const vv = window.visualViewport;
+    const w = Math.max(2, Math.round(vv ? vv.width : window.innerWidth));
+    const h = Math.max(2, Math.round(vv ? vv.height : window.innerHeight));
+    if (Math.round(game.scale.width) !== w || Math.round(game.scale.height) !== h) game.scale.resize(w, h);
+  };
+  const soon = () => {
+    fit();
+    for (const ms of [120, 400, 1000]) window.setTimeout(fit, ms);
+  };
+  window.addEventListener('resize', soon);
+  window.addEventListener('orientationchange', soon);
+  window.addEventListener('pageshow', soon);
+  window.visualViewport?.addEventListener('resize', soon);
+  window.setTimeout(soon, 300);
 }
 
 start();
