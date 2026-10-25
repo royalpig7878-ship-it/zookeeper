@@ -24,6 +24,8 @@ import { Clock, SHIFT_END, advanceClock, daylight, formatTime, newClock, phaseOf
 import { History, ZooEvent, newHistory, photosUnlockedBy, recordEvent } from '../systems/history';
 import { INVENTORY_SLOTS, Slot, addItem, countItem, hasItem, removeItem, roomFor } from '../systems/inventory';
 import { bagSheet, clinicSheet, enrichSheet, historySheet, medicalSheet, recipesSheet, reportSheet, shedSheet, storeSheet } from '../systems/sheets';
+import { chapterCompleteKey, danielTalk, newlyCompleted, objectiveText, storyLines } from '../systems/story';
+import { NOTES } from '../data/notes';
 import { TaskEvent, TaskState, applyTaskEvent, createTasks, summary } from '../systems/tasks';
 import {
   Candidate, DayCare, MedicalCase, MedicalState, activeCases, caseFor, collectMedicine, defOf, endOfDay, examine, giveDose,
@@ -119,6 +121,11 @@ export class GameScene extends Phaser.Scene {
   private history: History = newHistory();
   private flags = new Set<string>();
 
+  // story
+  /** the goal last shown in the HUD (undefined until the first time it is shown) */
+  private lastObjective: string | undefined;
+  private danielSpot: Interactable | null = null;
+
   // veterinary care
   private medical: MedicalState = newMedical();
   /** habitats where the keeper filled the feeder / put out enrichment today */
@@ -164,6 +171,8 @@ export class GameScene extends Phaser.Scene {
     this.sickIds = new Set();
     this.vetView = null;
     this.vetSpot = null;
+    this.lastObjective = undefined;
+    this.danielSpot = null;
     this.animals = [];
     this.habitats = new Map();
     this.nearby = undefined;
@@ -204,6 +213,7 @@ export class GameScene extends Phaser.Scene {
     this.placeObjects();
     this.createStations();
     this.createWorkday();
+    this.createDaniel();
     this.createAnimals();
     this.syncMedical();
     this.createPlayer();
@@ -245,6 +255,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(60, () => {
       this.emitTime(true);
       this.game.events.emit('ui:daylight', daylight(this.clock.minutes));
+      this.updateObjective(false);
       if (this.isFresh) this.openPanel('report');
       if (this.endShiftOnStart) this.time.delayedCall(250, () => this.performEndOfDay());
     });
@@ -423,7 +434,7 @@ export class GameScene extends Phaser.Scene {
     // things already picked up stop being interactable
     const base = this.layoutData.interactables.filter((i) => !(i.id === 'photo-old' && this.discovered.has('photo-old')));
     // Jobs come first, so a job on the same tile as a bench or sign (a loose bench) wins the tie.
-    this.interactables = [...(this.vetSpot ? [this.vetSpot] : []), ...land.map(toItem), ...base];
+    this.interactables = [...(this.vetSpot ? [this.vetSpot] : []), ...land.map(toItem), ...base, ...(this.danielSpot ? [this.danielSpot] : [])];
     this.waterChores = water.map(toItem);
     // Each habitat feels the mess in its own corner.
     for (const h of this.habitats.values()) {
@@ -877,6 +888,7 @@ export class GameScene extends Phaser.Scene {
   /** Record something that really happened. Shows "new photograph" feedback if it unlocked one. */
   private record(e: Omit<ZooEvent, 'id' | 'day' | 'minutes'>): ZooEvent | null {
     const ev = recordEvent(this.history, this.clock, e);
+    if (ev) this.updateObjective(true);
     for (const p of photosUnlockedBy(ev)) {
       this.time.delayedCall(1800, () => this.toast(`New photograph for the staff room wall: ${p.title}`));
     }
@@ -1006,6 +1018,7 @@ export class GameScene extends Phaser.Scene {
       case 'enter': return this.enterStaffRoom();
       case 'clinic': return this.game.events.emit('ui:sheet', clinicSheet(this.medical, this.animalNames()));
       case 'vetvisit': return this.assistVet();
+      case 'talk': return this.talkDaniel();
       default: return;
     }
   }
@@ -1029,6 +1042,7 @@ export class GameScene extends Phaser.Scene {
     }
     for (const id of missing) addItem(this.inventory, id, 1);
     this.toast(`Collected the ${what}`);
+    if (event === 'tools-collected') this.record({ category: 'milestone', key: 'tools-collected', text: 'You collected the shovel, broom and hose from the maintenance shed.' });
     if (event) this.taskEvent(event);
     else this.save(false);
   }
@@ -1071,7 +1085,10 @@ export class GameScene extends Phaser.Scene {
       for (const [id, n] of need) removeItem(this.inventory, id, n);
       addItem(this.inventory, r.output, 1);
       this.toast(`Prepared a ${out}`);
-      if (r.species === 'elephant') this.taskEvent('meal-prepared');
+      if (r.species === 'elephant') {
+        this.record({ category: 'care', animalId: 'buster', key: 'first-meal', text: "You prepared Buster's first meal at the prep counter." });
+        this.taskEvent('meal-prepared');
+      }
       else this.save(false);
     });
   }
@@ -1309,7 +1326,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       const title = kind === 'report' ? `Morning Report - Day ${this.clock.day}` : undefined;
       const names = this.animalNames();
-      this.game.events.emit('ui:sheet', reportSheet(this.tasks, this.clock, title, [], activeCases(this.medical).map((c) => statusLine(c, names[c.animalId] ?? 'An animal'))));
+      this.game.events.emit('ui:sheet', reportSheet(this.tasks, this.clock, title, [], activeCases(this.medical).map((c) => statusLine(c, names[c.animalId] ?? 'An animal')), storyLines(this.history, this.flags)));
     }
   }
 
@@ -1373,9 +1390,15 @@ export class GameScene extends Phaser.Scene {
         this.record({ category: 'care', key: `spotless-${day}`, text: 'Every habitat was spotless at the end of the shift.' });
       }
 
+      const finished = this.finishChapters();
       const lines: string[] = ['#TODAY', `Tasks completed: ${before.done} of ${before.total} (required: ${before.requiredDone}/${before.requiredTotal})`];
       for (const t of completed.slice(0, 4)) lines.push(`[x] ${t}`);
       if (completed.length > 4) lines.push(`...and ${completed.length - 4} more`);
+
+      for (const f of finished) {
+        lines.push(`#${f.heading.toUpperCase()}`, ...f.pages);
+        if (f.note) lines.push(`#${NOTES[f.note].title.toUpperCase()}`, ...NOTES[f.note].pages);
+      }
 
       lines.push('#OVERNIGHT');
       for (const rt of this.habitats.values()) {
@@ -1464,6 +1487,56 @@ export class GameScene extends Phaser.Scene {
         buttons: [{ id: 'start-day', label: `Start Day ${this.clock.day}`, color: 0x3f8f58 }],
       } satisfies SheetData);
     });
+  }
+
+  // ------------------------------------------------------------ story
+  /** Daniel Brooks waits near the staff building. He is the same person at the same place in every zoo. */
+  private createDaniel() {
+    const door = this.layoutData.interactables.find((i) => i.id === 'staff-door');
+    if (!door) return;
+    const options = [[2, 1], [-2, 1], [3, 1], [-3, 1], [2, 2], [-2, 2], [0, 2], [4, 1]];
+    const spot = options.map(([dx, dy]) => ({ x: door.x + dx, y: door.y + dy })).find((t) => !this.isBlocked(t.x, t.y));
+    if (!spot) return;
+    const px = tileCenter(spot.x);
+    const py = tileCenter(spot.y);
+    this.add.image(px, py, 'player_down_0').setOrigin(0.5, 44 / 48).setTint(0xf0b070).setDepth(py);
+    this.danielSpot = { id: 'daniel', x: spot.x, y: spot.y, label: 'TALK TO DANIEL', title: '', text: [], action: 'talk', range: 64 };
+    this.rebuildInteractables();
+  }
+
+  private talkDaniel() {
+    const talk = danielTalk(this.history, this.flags);
+    for (const r of talk.records) this.record({ category: 'milestone', key: r.key, text: r.text });
+    const pages = [...talk.pages];
+    // A conversation can finish a chapter: show the ending straight after it.
+    for (const f of this.finishChapters()) pages.push(f.heading, ...f.pages);
+    this.say(talk.title, ...pages);
+    this.save(false);
+  }
+
+  /** Show the current goal in the HUD, announcing it when it changes. */
+  private updateObjective(announce: boolean) {
+    const text = objectiveText(this.history, this.flags);
+    if (text === this.lastObjective) return;
+    const first = this.lastObjective === undefined;
+    this.lastObjective = text;
+    this.game.events.emit('ui:objective', text);
+    if (announce && !first && text) this.time.delayedCall(2600, () => this.toast(`New goal: ${text}`));
+  }
+
+  /** Mark any chapter whose steps are all done as finished (once), and hand back its ending. */
+  private finishChapters() {
+    const out: { heading: string; pages: string[]; note?: string }[] = [];
+    for (const c of newlyCompleted(this.history, this.flags)) {
+      this.record({ category: 'milestone', key: chapterCompleteKey(c), text: `Chapter ${c.number} complete: ${c.title}.` });
+      const note = c.finale.note;
+      if (note && !this.discovered.has(note)) {
+        this.discovered.add(note);
+        this.record({ category: 'discovery', key: `discovered-${note}`, text: NOTE_EVENT_TEXT[note] ?? `You found ${NOTES[note].title}.` });
+      }
+      out.push(c.finale);
+    }
+    return out;
   }
 
   // ------------------------------------------------------------ veterinary care

@@ -28,4 +28,19 @@ export const PHOTOS: PhotoDef[] = [
     caption: 'Buster waiting at the fence to greet you. Maya says he has never done that for a new keeper before.',
     unlockKey: 'greets',
   },
+  {
+    id: 'orientation', title: 'Orientation Day',
+    caption: 'Daniel posing by the gate with his clipboard, the day you arrived. He insists he was not smiling.',
+    unlockKey: 'met-daniel',
+  },
+  {
+    id: 'vet-visit', title: "Dr. Shah's House Call",
+    caption: 'Dr. Shah at the elephant gate, stethoscope out, Buster politely holding still. You are just out of frame, helping.',
+    unlockKey: 'case1-examined',
+  },
+  {
+    id: 'recovered', title: 'Back to Normal',
+    caption: 'Buster at the feeder, eating like himself again. Daniel took this and stuck it on the wall without asking.',
+    unlockKey: 'case1-recovered',
+  },
 ];

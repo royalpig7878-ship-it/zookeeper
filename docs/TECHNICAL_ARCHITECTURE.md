@@ -35,6 +35,11 @@ Pure modules in `src/systems/` (all unit-tested without Phaser):
 
 World freezes (`registry.paused`) behind the pause menu and any sheet. Dialogues and the inspect panel do not freeze it.
 
+## Story (Milestone 9)
+- `data/story.ts` holds the chapters (steps with an objective, a hint and a key; a finale with an optional note) and Daniel's lines. `systems/story.ts` derives everything from the zoo history and story flags: `storyState` (current chapter, step, progress), `newlyCompleted` (chapters done but not yet celebrated), `danielTalk`, `storyLines` and `objectiveText`. Nothing is stored separately, so the save format did not change.
+- `GameScene` shows the goal (`ui:objective` to the HUD), places Daniel (`createDaniel`, `talk` interaction), records the conversation, and finishes chapters (`finishChapters`: records the milestone once, delivers the finale note). The staff room scene shows the same STORY lines in its report.
+- Steps are keyed to events the game already records (`met-daniel`, `locker-opened`, `tools-collected`, `first-meal`, `first-fed`, `first-water`, `first-clean`, `first-inspect-buster`, `shift-complete-1`, and the `case1-...` events from the vet case).
+
 ## Veterinary care (Milestone 8)
 - Data first: `data/conditions.ts` defines every condition (symptoms, vet finding, medicine and doses, recovery days, the care-plan rule, behaviour effects, onset weight and age limit).
 - `systems/medical.ts` is pure logic with no Phaser: a `MedicalCase` moves through the stages `early, recorded, reported, examined, treating, recovered` using small functions (`recordSymptoms`, `reportToVet`, `visitDue`, `examine`, `collectMedicine`, `giveDose`, `recoveryCheck`). `endOfDay(case, day, care)` is the overnight bookkeeping and holds the fairness rules; `maybeStartCase` decides who falls ill from a seeded `Rng` and what the keeper neglected. `validateMedical` checks saved data.

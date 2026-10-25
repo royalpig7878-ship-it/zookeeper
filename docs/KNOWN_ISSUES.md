@@ -28,6 +28,14 @@
 - The `prompt()` box for entering a seed is basic.
 - Production bundle is ~1.2 MB (330 KB gzipped) because it includes all of Phaser.
 
+## Milestone 9 gaps
+- Only Chapters 1 and 2 exist. Chapter 2's writing is a short first draft, and its first steps depend on the first illness (Buster's, on day 2). Chapters 3 to 6 (a new arrival, the storm, new life, Margaret's last letter) are not written.
+- Daniel has no art of his own (the keeper sprite with an orange tint) and stands in one place. Maya, Leo and Dr. Shah speak only through the noticeboard and the vet menus, not as people you can walk up to.
+- The goal line is one short sentence; there is no quest log or map marker. It points at the first open step even if you are partway through a later one.
+- The ending letter is delivered in the day summary, not as something you find by exploring.
+- Steps are matched to history events, so a step done before the story could notice it (for example in an old save) is counted as done.
+- A goal that changes while you are in the staff room is announced only on the next screen you open; the report shows the current goal.
+
 ## Milestone 8 gaps
 - Dr. Shah has no art of her own: she is the keeper's sprite with a blue tint. The clinic is a door with a menu, not an interior, and there is no dialogue tree beyond a few lines.
 - Condition numbers (how often illness starts, recovery days, how much neglect matters) are first guesses and have not been balanced by long play.

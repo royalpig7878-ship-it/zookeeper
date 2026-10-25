@@ -118,9 +118,19 @@ Animals can now become unwell, and you handle it with Dr. Priya Shah, the visiti
 - **Recover.** When they are well again, inspect them and do a **Recovery check**. Everything is written into the animal's **History** (a Medical History section) and the care report.
 - **It is forgiving.** If you are slow, Dr. Shah examines the animal on her rounds and the clinic brings the medicine round. A day without following the care plan counts as half a day; nothing ever gets worse because of it.
 
+## Milestone 9: Story
+
+Chapter 1, **The First Shift**, is playable from beginning to end, and Chapter 2, **Buster Remembers**, follows it.
+
+- **Daniel Brooks** (the senior keeper) waits by the staff building. Talk to him (TALK TO DANIEL): he welcomes you, explains the controls and your day, and afterwards gives you a hint about whatever is next. He remembers what you have done.
+- **A goal** is shown under the clock (and in the care report under STORY). It points at the first thing still to do and tells you when it changes. Chapter 1 steps: meet Daniel, collect your notebook, take the tools, prepare Buster's meal, fill his feeder and water, clear waste, inspect him, end your shift.
+- **The ending:** finish the first shift and the day summary shows the chapter ending and **Margaret Holloway's letter**, which says there is a story about Buster that nobody tells. It is kept in the staff room Notes.
+- **Chapter 2** uses the veterinary case from Milestone 8: notice Buster is off his food, record, report, help Dr. Shah, care for him until he recovers, then talk to Daniel, who tells you about Buster and his old companion Matilda.
+- **Photographs and messages:** new photographs for meeting Daniel, Dr. Shah's visit and Buster's recovery (the staff room wall now has seven frames), and new staff messages on the noticeboard that appear as the story moves on.
+
 ## Not built yet
 
-More animals (otters), story, weather, audio. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
+More animals (otters), Chapters 3 to 6, weather, audio. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
 ## Documentation
 

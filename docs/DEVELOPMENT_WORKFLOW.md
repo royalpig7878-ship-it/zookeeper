@@ -16,7 +16,7 @@ Status legend: **Done** (built and tested), **Partial**, **Not started**.
 | 6 | Groundskeeping | Done (see checklist; real-phone test still pending) |
 | 7 | Multiple Animals | Done (see checklist; otter and real-phone test still pending) |
 | 8 | Veterinary Care | Done (see checklist; real-phone test still pending) |
-| 9 | Story | Not started |
+| 9 | Story | Done (Chapter 1 complete and playable; Chapter 2 is a first draft; see checklist; real-phone test still pending) |
 | 10 | Living Zoo | Not started |
 | 11 | Polish | Not started |
 
@@ -143,6 +143,20 @@ Honest notes: otters were left out for now (the other five species fill all the 
 
 Honest notes: Dr. Shah is the keeper sprite with a blue tint (no unique art yet) and the clinic is still only a door, not an interior. The condition numbers (how often illness starts, how many days to recover) are first guesses. The scenario was driven by scripted calls and a few real clicks, not played by hand on a phone. There is no daily "vet task" in the task list; the VET CARE section of the report shows what is next.
 
+## Milestone 9 checklist
+
+- [x] Narrative system as data (`data/story.ts`): chapters made of steps, each step done when a real zoo-history event (or story flag) exists. Progress is derived (`systems/story.ts`), so it cannot disagree with the save. New chapters are added by adding to the list
+- [x] Chapter 1, The First Shift: nine steps from meeting Daniel to ending the shift, in any sensible order, with a tracker that points at the first open step and announces changes
+- [x] Staff dialogue: Daniel Brooks stands near the staff building. An introduction with the controls tour (once), then context hints, then Buster's story when the chapter reaches it. New noticeboard messages from Daniel and Dr. Shah appear as the story moves on
+- [x] The ending: Margaret's letter is delivered in the day summary when the first shift ends, is stored in the staff room notes, and is recorded in the history
+- [x] Story flags: stored in the existing `flags` and the zoo history (no new save format needed); chapter completion is recorded once
+- [x] Animal storyline: Buster. His care card, the old photograph, the letter, Chapter 2 (his illness) and Daniel's account of Matilda
+- [x] Photographs: three new ones (Orientation Day, Dr. Shah's House Call, Back to Normal). The staff room wall has seven frames
+- [x] Main quest progression: a goal line under the clock and a STORY section in the care report (in the zoo and in the staff room)
+- [x] 201 automated tests (13 new: data integrity, walking the whole of Chapter 1, any-order steps, one-time celebration, Chapter 2 depends on the vet case, Daniel remembering, report lines). Browser: a new game played through Chapter 1 using the game's own actions, ending sheet with Chapter 1 complete and the letter; Chapter 2 through the vet case and Daniel's conversation; reload keeping chapters, photographs and notes
+
+Honest notes: Chapter 2's writing is a short first draft. Daniel is the keeper sprite with an orange tint (no unique art). The game's own actions were driven by script, with a few real clicks; it has not been played by hand on a phone. Chapters 3 to 6 are not written.
+
 ## Next steps
 
-Milestone 9: story chapters. Earlier note for reference: seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)
+Milestone 10: the living zoo. Between-shift simulation, relationships, baby animals, growth, breeding rules, weather and random scenarios. Earlier note for reference: Milestone 9 was story chapters. Earlier note for reference: seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)

@@ -107,11 +107,12 @@ export function enrichSheet(habitatId: string, group: string, inv: readonly Slot
 
 export function reportSheet(
   tasks: readonly TaskState[], clock: Clock, title?: string, extra: SheetData['buttons'] = [], vetLines: readonly string[] = [],
+  storyLines: readonly string[] = [],
 ): SheetData {
   return {
     title: title ?? `Care Report - Day ${clock.day}`,
     subtitle: `Willow Creek Wildlife Park, ${formatTime(clock.minutes)}`,
-    lines: [...(vetLines.length ? ['#VET CARE', ...vetLines] : []), ...reportLines(tasks)],
+    lines: [...(storyLines.length ? ['#STORY', ...storyLines] : []), ...(vetLines.length ? ['#VET CARE', ...vetLines] : []), ...reportLines(tasks)],
     buttons: [...extra, { id: 'close', label: 'Close' }],
   };
 }

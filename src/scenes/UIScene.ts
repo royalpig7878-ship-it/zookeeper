@@ -74,6 +74,7 @@ export class UIScene extends Phaser.Scene {
 
   private clockText!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
+  private objectiveText!: Phaser.GameObjects.Text;
   private tasksBtn!: Phaser.GameObjects.Container;
   private bagBtn!: Phaser.GameObjects.Container;
   private sheet!: SheetPanel;
@@ -142,8 +143,10 @@ export class UIScene extends Phaser.Scene {
     ev.on('ui:sheet-close', this.closeSheet, this);
     ev.on('ui:fade', this.runFade, this);
     ev.on('ui:status', this.setStatus, this);
+    ev.on('ui:objective', this.setObjective, this);
     this.events.once('shutdown', () => {
       ev.off('ui:status', this.setStatus, this);
+      ev.off('ui:objective', this.setObjective, this);
       ev.off('ui:context', this.setContext, this);
       ev.off('ui:dialog', this.openDialog, this);
       ev.off('ui:toast', this.showToast, this);
@@ -178,7 +181,7 @@ export class UIScene extends Phaser.Scene {
     this.tasksBtn.setPosition(width - m - 28 - 64, m + 28);
     this.bagBtn.setPosition(width - m - 28 - 128, m + 28);
     this.clockText.setPosition(m, m);
-    this.statusText.setPosition(m, m + 58);
+    this.placeHud();
     this.toast.setPosition(width / 2, m + 56);
     this.dusk.setSize(width, height);
     this.fade.setSize(width, height);
@@ -253,6 +256,9 @@ export class UIScene extends Phaser.Scene {
     this.clockText = this.add.text(0, 0, '', {
       fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#f4ecd0', backgroundColor: '#2d3b2acc', padding: { x: 10, y: 6 }, resolution: 2, lineSpacing: 2,
     }).setDepth(3);
+    this.objectiveText = this.add.text(0, 0, '', {
+      fontFamily: FONT, fontSize: '14px', color: '#f4ecd0', backgroundColor: '#2d3b2acc', padding: { x: 8, y: 4 }, resolution: 2, lineSpacing: 2,
+    }).setDepth(3).setVisible(false);
     this.statusText = this.add.text(0, 0, '', {
       fontFamily: FONT, fontSize: '16px', fontStyle: 'bold', color: '#f0e4b0', backgroundColor: '#2d3b2acc', padding: { x: 10, y: 6 }, resolution: 2, lineSpacing: 2,
     }).setDepth(3).setVisible(false);
@@ -280,6 +286,23 @@ export class UIScene extends Phaser.Scene {
   /** A small status box under the clock (mower battery, grass left, litter left). Empty text hides it. */
   private setStatus(text: string) {
     this.statusText.setText(text).setVisible(text.length > 0);
+    this.placeHud();
+  }
+
+  /** The current story objective, in a small box under the clock. Empty text hides it. */
+  private setObjective(text: string) {
+    this.objectiveText.setText(text ? `Goal: ${text}` : '').setVisible(text.length > 0);
+    this.placeHud();
+  }
+
+  /** Stack the small boxes under the clock: the vehicle status first, then the goal. */
+  private placeHud() {
+    const m = this.margin;
+    const { width } = this.scale;
+    this.statusText.setPosition(m, m + 58);
+    const below = this.statusText.visible ? this.statusText.height + 6 : 0;
+    this.objectiveText.setWordWrapWidth(Math.max(150, Math.min(320, width - 2 * m - 210)));
+    this.objectiveText.setPosition(m, m + 58 + below);
   }
 
   private setTime(t: TimeInfo) {

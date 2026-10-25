@@ -12,6 +12,9 @@ You are a zookeeper at Willow Creek Wildlife Park, not its owner. The zoo alread
 ## Status
 Milestones 1 to 8 are built: walking the park, animals with personalities and memories, a daily workday, a generated zoo, groundskeeping, several species, and veterinary care. The current list is in [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md).
 
+## Story (design)
+The story is told through care and conversation, never through combat or puzzles. Chapter 1 teaches the daily routine and ends with Margaret's letter. Chapter 2 asks you to notice that Buster is unwell, handle it with the vet, and listen to Daniel's account of Buster's past. Each step is something you really did, so the story can never claim an event that did not happen.
+
 ## Veterinary care (design)
 Illness is gentle and teaches a routine: notice, record, report, assist, treat, recheck. Conditions are mild and fictional. Good routine care prevents most illness; neglect makes it likelier but never punishes the keeper once a case has started (the vet steps in, a missed day counts as half). One animal is unwell at a time. The first case is always Buster's, on day 2, so every player learns the whole process once.
 
