@@ -14,10 +14,11 @@
     <title>Zookeeper: A Living Zoo</title>
     <style>
       html, body { margin: 0; height: 100%; width: 100%; background: #1c2b1c; overflow: hidden; touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
-      #game { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; overflow: hidden; }
+      #game { position: fixed; inset: 0; overflow: hidden; }
       canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
       /* The game is built for landscape. In portrait on a phone, a gentle note asks for a turn; it never blocks play. */
-      #turn { display: none; position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 8; background: #2d3b2add; color: #f4ecd0; font: 14px/1.3 sans-serif; padding: 8px 14px; border-radius: 10px; border: 2px solid #f4ecd0; pointer-events: none; }
+      #turn { display: none; position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 14px); transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); text-align: center; animation: turnfade 0.6s ease 9s forwards; z-index: 8; background: #2d3b2add; color: #f4ecd0; font: 14px/1.3 sans-serif; padding: 8px 14px; border-radius: 10px; border: 2px solid #f4ecd0; pointer-events: none; }
+      @keyframes turnfade { to { opacity: 0; visibility: hidden; } }
       @media (orientation: portrait) and (max-width: 700px) { #turn { display: block; } }
     </style>
   </head>
