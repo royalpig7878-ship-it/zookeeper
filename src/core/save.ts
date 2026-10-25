@@ -10,6 +10,7 @@ import { ALL_TASK_EVENTS } from '../systems/tasks';
 import { AnimalMemory, validateMemory } from '../animals/memory';
 import { History, validateHistory } from '../systems/history';
 import { MedicalState, validateMedical } from '../systems/medical';
+import { LifeState, Sex, validateLife } from '../systems/life';
 import type { Clock } from '../systems/clock';
 import type { Pile } from '../systems/cleaning';
 import type { Slot } from '../systems/inventory';
@@ -47,6 +48,8 @@ export interface SaveData {
   enrichment?: Record<string, { item: string; x: number; y: number; interest: number }>;
   /** Added in save version 7 (veterinary care): health cases and their histories. Missing in older saves. */
   medical?: MedicalState;
+  /** Added in save version 8 (the living zoo): pregnancies, births and the last random happening. Missing in older saves. */
+  life?: LifeState;
 }
 
 export interface AnimalSave {
@@ -65,6 +68,12 @@ export interface AnimalSave {
   habitatId?: string;
   profile?: { ageYears: number; backstory: string[]; affinity: Record<string, number> };
   tint?: number;
+  /** Added in save version 8. Missing in older saves (animals then get a sex from the roster). */
+  sex?: Sex;
+  /** the game day it was born in the zoo; missing for animals that were already here */
+  birthDay?: number;
+  motherId?: string;
+  fatherId?: string;
 }
 
 export type ValidationResult = { ok: true; data: SaveData } | { ok: false; reason: string };
@@ -145,6 +154,12 @@ export function validateSave(raw: unknown): ValidationResult {
       enrichment[id] = { item: e.item, x: e.x, y: e.y, interest: clamp100(e.interest) };
     }
   }
+  let life: LifeState | undefined;
+  if (s.life !== undefined) {
+    const l = validateLife(s.life);
+    if (typeof l === 'string') return { ok: false, reason: l };
+    life = l;
+  }
   let medical: MedicalState | undefined;
   if (s.medical !== undefined) {
     const m = validateMedical(s.medical);
@@ -155,6 +170,7 @@ export function validateSave(raw: unknown): ValidationResult {
     ok: true,
     data: {
       ...workday,
+      life,
       medical,
       habitatStations,
       enrichment,
@@ -207,6 +223,10 @@ function validateAnimal(raw: unknown): AnimalSave | null {
     profile,
     habitatId: typeof a.habitatId === 'string' ? a.habitatId : undefined,
     tint: isNum(a.tint) ? Math.min(1, Math.max(0, a.tint)) : undefined,
+    sex: a.sex === 'female' || a.sex === 'male' ? a.sex : undefined,
+    birthDay: isNum(a.birthDay) ? a.birthDay : undefined,
+    motherId: typeof a.motherId === 'string' ? a.motherId : undefined,
+    fatherId: typeof a.fatherId === 'string' ? a.fatherId : undefined,
     id: a.id, speciesId: a.speciesId, name: a.name, x: a.x, y: a.y, facing: a.facing, traits: a.traits as Trait[], activity,
     needs: {
       hunger: clamp100(n.hunger as number), thirst: clamp100(n.thirst as number), energy: clamp100(n.energy as number),
@@ -218,7 +238,7 @@ function validateAnimal(raw: unknown): AnimalSave | null {
 const PRIORITIES = ['high', 'routine', 'grounds', 'optional'];
 const TASK_EVENTS: readonly string[] = ALL_TASK_EVENTS;
 /** Known events, plus the per-habitat ones ("fed:zebra", "watered:penguin", "enriched:red-panda"). */
-const isTaskEvent = (e: string) => TASK_EVENTS.includes(e) || /^(fed|watered|enriched):[a-z0-9-]+$/.test(e);
+const isTaskEvent = (e: string) => TASK_EVENTS.includes(e) || /^(fed|watered|enriched|monitor):[a-z0-9-]+$/.test(e);
 
 /** Validate the clock, inventory, tasks and piles. Returns the cleaned fields, or an error message. */
 function validateWorkday(s: Record<string, unknown>): Pick<SaveData, 'clock' | 'inventory' | 'tasks' | 'piles'> | string {

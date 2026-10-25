@@ -28,6 +28,15 @@
 - The `prompt()` box for entering a seed is basic.
 - Production bundle is ~1.2 MB (330 KB gzipped) because it includes all of Phaser.
 
+## Milestone 10 gaps
+- Numbers are first guesses: how often animals conceive (a 16% chance on a good day, at most one pregnancy at a time), gestation and growth days, how fond a pair must be, how much the weather changes thirst. None were tuned by long play, so breeding may be too rare or too common.
+- Newborns and juveniles are the adult sprite drawn smaller (55% and 80%), not a proper baby picture. There are no eggs for penguins, no nursing, no weaning.
+- Only mothers and fathers who are in the same habitat can breed. There is no moving animals between habitats, no sending young away and no maximum for the whole zoo beyond each habitat's limit, so a zoo that is cared for well slowly fills each habitat.
+- Weather affects looks, thirst and the amount of leaves and branches. It does not affect animal behaviour (they do not shelter from rain) or the lighting of the staff room.
+- Time away catches up with one calculation, not a full simulation: relationships, pregnancy and growth do not progress while you are away (they follow game days, which only pass when you end a shift).
+- The "Welcome back" note appears only when you continue a saved game, not when you switch back to a tab that was left open.
+- Random happenings are a short list and can repeat.
+
 ## Milestone 9 gaps
 - Only Chapters 1 and 2 exist. Chapter 2's writing is a short first draft, and its first steps depend on the first illness (Buster's, on day 2). Chapters 3 to 6 (a new arrival, the storm, new life, Margaret's last letter) are not written.
 - Daniel has no art of his own (the keeper sprite with an orange tint) and stands in one place. Maya, Leo and Dr. Shah speak only through the noticeboard and the vet menus, not as people you can walk up to.

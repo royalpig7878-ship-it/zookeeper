@@ -82,6 +82,10 @@ export class UIScene extends Phaser.Scene {
   private progressText!: Phaser.GameObjects.Text;
   private progress: ProgressInfo | null = null;
   private dusk!: Phaser.GameObjects.Rectangle;
+  private weatherDim!: Phaser.GameObjects.Rectangle;
+  private rainGfx!: Phaser.GameObjects.Graphics;
+  private weather = { dim: 0, rain: false, fog: false };
+  private drops: { x: number; y: number; s: number }[] = [];
   private fade!: Phaser.GameObjects.Rectangle;
 
   constructor() {
@@ -101,6 +105,8 @@ export class UIScene extends Phaser.Scene {
     this.progress = null;
     // Night/dusk tint over the whole world (below every other UI element).
     this.dusk = this.add.rectangle(0, 0, 10, 10, 0x141a46, 0).setOrigin(0).setDepth(-1);
+    this.weatherDim = this.add.rectangle(0, 0, 10, 10, 0x2a3140, 0).setOrigin(0).setDepth(-0.9);
+    this.rainGfx = this.add.graphics().setDepth(-0.8);
     this.stickBase = this.add.image(0, 0, 'ui_stick_base').setAlpha(0.5).setDepth(1);
     this.stickKnob = this.add.image(0, 0, 'ui_stick_knob').setAlpha(0.7).setDepth(2);
 
@@ -144,9 +150,11 @@ export class UIScene extends Phaser.Scene {
     ev.on('ui:fade', this.runFade, this);
     ev.on('ui:status', this.setStatus, this);
     ev.on('ui:objective', this.setObjective, this);
+    ev.on('ui:weather', this.setWeather, this);
     this.events.once('shutdown', () => {
       ev.off('ui:status', this.setStatus, this);
       ev.off('ui:objective', this.setObjective, this);
+      ev.off('ui:weather', this.setWeather, this);
       ev.off('ui:context', this.setContext, this);
       ev.off('ui:dialog', this.openDialog, this);
       ev.off('ui:toast', this.showToast, this);
@@ -184,6 +192,7 @@ export class UIScene extends Phaser.Scene {
     this.placeHud();
     this.toast.setPosition(width / 2, m + 56);
     this.dusk.setSize(width, height);
+    this.weatherDim.setSize(width, height);
     this.fade.setSize(width, height);
     this.layoutProgress();
     this.sheet.layout();
@@ -287,6 +296,30 @@ export class UIScene extends Phaser.Scene {
   private setStatus(text: string) {
     this.statusText.setText(text).setVisible(text.length > 0);
     this.placeHud();
+  }
+
+  /** Today's weather: a grey tint, falling rain, or fog. Drawn cheaply, a few dozen streaks. */
+  private setWeather(w: { dim: number; rain: boolean; fog: boolean }) {
+    this.weather = w;
+    this.weatherDim.setFillStyle(w.fog ? 0xdfe6e8 : 0x2a3140, w.fog ? 0.28 : w.dim);
+    const { width, height } = this.scale;
+    this.drops = w.rain ? Array.from({ length: 70 }, () => ({ x: Math.random() * width, y: Math.random() * height, s: 0.7 + Math.random() * 0.6 })) : [];
+    if (!w.rain) this.rainGfx.clear();
+  }
+
+  update(_time: number, delta: number) {
+    if (!this.weather.rain || this.drops.length === 0) return;
+    const { width, height } = this.scale;
+    const g = this.rainGfx;
+    g.clear();
+    g.lineStyle(2, 0xbcd4f0, 0.55);
+    for (const d of this.drops) {
+      d.y += delta * 0.55 * d.s;
+      d.x -= delta * 0.12 * d.s;
+      if (d.y > height) { d.y = -20; d.x = Math.random() * width; }
+      if (d.x < 0) d.x = width;
+      g.lineBetween(d.x, d.y, d.x - 3, d.y + 11);
+    }
   }
 
   /** The current story objective, in a small box under the clock. Empty text hides it. */

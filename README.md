@@ -128,9 +128,20 @@ Chapter 1, **The First Shift**, is playable from beginning to end, and Chapter 2
 - **Chapter 2** uses the veterinary case from Milestone 8: notice Buster is off his food, record, report, help Dr. Shah, care for him until he recovers, then talk to Daniel, who tells you about Buster and his old companion Matilda.
 - **Photographs and messages:** new photographs for meeting Daniel, Dr. Shah's visit and Buster's recovery (the staff room wall now has seven frames), and new staff messages on the noticeboard that appear as the story moves on.
 
+## Milestone 10: The Living Zoo
+
+The zoo now changes over time, gently.
+
+- **Weather.** Each day has its own weather (clear, cloudy, rain, storm, hot, windy, fog), the same every time for the same zoo. It is shown on screen (grey tint, falling rain, fog), in the care report and in tomorrow's forecast. Hot days make animals thirstier; rain, wind and storms bring extra leaves and fallen branches the next morning. The first two days are always clear, and there are never two storms in a row.
+- **Babies.** Animals now have a sex. Zebras, lions, red pandas and penguins can have young, if the rules are right: an adult female and male of the same species who get on, both healthy, in a habitat that is fed and clean, with room, and not close relatives. It is rare and slow, and you never force it. An expecting mother gets an optional "check on her" task and care tips; the birth waits (at most two days) if the habitat is neglected, and then happens anyway.
+- **Growing up.** A newborn is small and slow and stays close to its mother. It grows into a bigger juvenile and then an adult, over about two weeks of days, and you can see it change. Every animal's History now has a **Family** section: sex, birth day, mother, father, brothers and sisters, young.
+- **Away from the game.** If you come back after 15 minutes or more, a "Welcome back" note tells you what happened: the animals rested and ate a little, and a little mess appeared. At most 8 hours are counted, nobody starves or falls ill because you were out, and the day and the story do not move on without you.
+- **Random happenings.** Now and then something small happens (a school visit, a busy weekend's litter, a photographer, apples from Maya, a routine check), at most once every three days. They are never harmful.
+- **Breeding is never needed for the story.** If you do nothing special, the zoo stays the same size.
+
 ## Not built yet
 
-More animals (otters), Chapters 3 to 6, weather, audio. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
+More animals (otters), Chapters 3 to 6, audio, settings. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
 ## Documentation
 

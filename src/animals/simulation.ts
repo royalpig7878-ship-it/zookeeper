@@ -3,6 +3,7 @@ import { SPECIES } from '../data/animals';
 import { SpeciesDef, Trait } from '../data/animals/types';
 import { CONDITIONS, ConditionId } from '../data/conditions';
 import { traitSum } from '../data/traits';
+import { STAGE_SPEED, Sex, Stage } from '../systems/life';
 import { moveWithCollision, collides, BlockedFn } from '../world/movement';
 import { AnimalMemory, FAVOURITE_AFTER, GREET_BASE, newMemory } from './memory';
 import { Activity, Needs, advanceNeeds, clamp } from './needs';
@@ -52,6 +53,13 @@ export interface AnimalState {
   signals: string[];
   /** a health problem the animal currently has (set by the medical system, changes behaviour) */
   condition?: ConditionId;
+  sex: Sex;
+  /** baby, juvenile or adult: young animals are smaller, slower and stay close to their mother */
+  stage: Stage;
+  /** the game day it was born in the zoo (missing for animals that were already here) */
+  birthDay?: number;
+  motherId?: string;
+  fatherId?: string;
 }
 
 const effectsOf = (a: AnimalState) => (a.condition ? CONDITIONS[a.condition].effects : null);
@@ -76,7 +84,7 @@ export interface AnimalWorld {
   /** where the keeper is standing, if close enough to be noticed from the habitat */
   keeper?: Pt | null;
   /** the other animals living in the same habitat */
-  others?: readonly { id: string; x: number; y: number }[];
+  others?: readonly { id: string; x: number; y: number; motherId?: string; stage?: Stage }[];
   /** the enrichment item currently in the habitat, if any (null = none yet) */
   enrichment?: Enrichment | null;
   bounds: { x0: number; y0: number; x1: number; y1: number }; // pixels, walkable area
@@ -84,6 +92,8 @@ export interface AnimalWorld {
   rand: () => number;
   /** number of waste piles in the habitat right now */
   dirt?: number;
+  /** thirst builds this much faster today (a hot day); missing means normal */
+  thirstMul?: number;
 }
 
 const ARRIVE = 6;
@@ -95,7 +105,7 @@ export function createAnimal(
 ): AnimalState {
   return {
     id, speciesId, name, habitatId, x, y, facing: 'right', traits, needs, activity: 'idle', timer: 2, stuck: 0,
-    memory, affinity, profile, speedMul: 1, fleeCooldown: 0, tint: 0.5, signals: [],
+    memory, affinity, profile, speedMul: 1, fleeCooldown: 0, tint: 0.5, signals: [], sex: 'female', stage: 'adult',
   };
 }
 
@@ -124,6 +134,7 @@ export function stepAnimal(a: AnimalState, world: AnimalWorld, dtSec: number, mi
   const minutes = dtSec * minutesPerSec;
   a.needs = advanceNeeds(a.needs, minutes, a.activity, s, world.dirt ?? 0);
   const fx = effectsOf(a);
+  if (world.thirstMul && world.thirstMul !== 1) a.needs.thirst = clamp(a.needs.thirst + (world.thirstMul - 1) * s.rates.thirstPerMin * minutes);
   // Being unwell is tiring: a little extra energy drain while awake.
   if (fx && fx.drain > 1 && a.activity !== 'sleeping') a.needs.energy = clamp(a.needs.energy - (fx.drain - 1) * 0.05 * minutes);
   a.fleeCooldown = Math.max(0, a.fleeCooldown - dtSec);
@@ -280,6 +291,12 @@ export function decide(a: AnimalState, s: SpeciesDef, w: AnimalWorld): void {
   const restless = (fx?.scratch ?? 0) + (fx?.pace ?? 0);
   if (restless > 0) options.push({ weight: restless * 3, run: () => goTo(a, fencePoint(a, s, w), 'wander') });
 
+  // Family: young animals stay near their mother, and a mother keeps an eye on her young.
+  const mother = a.motherId ? (w.others ?? []).find((o) => o.id === a.motherId) : undefined;
+  if (a.stage !== 'adult' && mother) options.push({ weight: a.stage === 'baby' ? 9 : 4, run: () => goTo(a, clampInside(jitter(mother, w, 30), s, w), 'companion') });
+  const young = (w.others ?? []).filter((o) => o.motherId === a.id && o.stage !== 'adult');
+  if (young.length > 0) options.push({ weight: 4, run: () => goTo(a, clampInside(jitter(young[0], w, 36), s, w), 'companion') });
+
   // Company: herds, pairs and colonies stay together; solitary animals keep their distance.
   const others = w.others ?? [];
   if (others.length > 0 && s.social.kind !== 'solitary') {
@@ -420,7 +437,7 @@ function walk(a: AnimalState, s: SpeciesDef, w: AnimalWorld, dt: number) {
   const dy = t.y - a.y;
   const d = Math.hypot(dx, dy);
   if (d <= ARRIVE) return arrive(a, w);
-  const speed = s.speed * (1 + traitSum(a.traits, 'speed')) * a.speedMul * (effectsOf(a)?.speed ?? 1);
+  const speed = s.speed * (1 + traitSum(a.traits, 'speed')) * a.speedMul * (effectsOf(a)?.speed ?? 1) * STAGE_SPEED[a.stage];
   const step = Math.min(speed * dt, d);
   const next = moveWithCollision(a.x, a.y, (dx / d) * step, (dy / d) * step, s.radius, w.isBlocked);
   const moved = Math.hypot(next.x - a.x, next.y - a.y);

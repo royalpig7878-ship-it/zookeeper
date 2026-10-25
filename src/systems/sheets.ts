@@ -12,6 +12,7 @@ import { Clock, formatTime } from './clock';
 import { History, ZooEvent, forAnimal, hasEvent, newestFirst, unlockedPhotos } from './history';
 import { INVENTORY_SLOTS, Slot, countItem, hasItem } from './inventory';
 import { TaskState, reportLines } from './tasks';
+import { Relative, familyOf, stageWord } from './life';
 import { CONDITIONS } from '../data/conditions';
 import {
   MedicalCase, MedicalState, activeCases, caseLines, casesOf, defOf, needsDoseToday, readyForCheck, statusLine,
@@ -107,12 +108,12 @@ export function enrichSheet(habitatId: string, group: string, inv: readonly Slot
 
 export function reportSheet(
   tasks: readonly TaskState[], clock: Clock, title?: string, extra: SheetData['buttons'] = [], vetLines: readonly string[] = [],
-  storyLines: readonly string[] = [],
+  storyLines: readonly string[] = [], weatherNotes: readonly string[] = [],
 ): SheetData {
   return {
     title: title ?? `Care Report - Day ${clock.day}`,
     subtitle: `Willow Creek Wildlife Park, ${formatTime(clock.minutes)}`,
-    lines: [...(storyLines.length ? ['#STORY', ...storyLines] : []), ...(vetLines.length ? ['#VET CARE', ...vetLines] : []), ...reportLines(tasks)],
+    lines: [...(weatherNotes.length ? ['#WEATHER', ...weatherNotes] : []), ...(storyLines.length ? ['#STORY', ...storyLines] : []), ...(vetLines.length ? ['#VET CARE', ...vetLines] : []), ...reportLines(tasks)],
     buttons: [...extra, { id: 'close', label: 'Close' }],
   };
 }
@@ -128,7 +129,10 @@ export function confirmEndSheet(tasks: readonly TaskState[]): SheetData {
 }
 
 /** Everything the zoo knows about one animal: who it is, how it behaves, and what has happened to it. */
-export function historySheet(a: AnimalState, history: History, names: Record<string, string> = {}, cases: readonly MedicalCase[] = []): SheetData {
+export function historySheet(
+  a: AnimalState, history: History, names: Record<string, string> = {}, cases: readonly MedicalCase[] = [],
+  family: { relatives: readonly Relative[]; expecting: boolean } = { relatives: [], expecting: false },
+): SheetData {
   const species = SPECIES[a.speciesId];
   const profile = a.profile ?? profileOf(a.id);
   const lines: string[] = [`#ABOUT ${a.name.toUpperCase()}`];
@@ -152,6 +156,18 @@ export function historySheet(a: AnimalState, history: History, names: Record<str
     if (count > 0 && ITEMS[item]) noticed.push(`Has played with the ${ITEMS[item].name.toLowerCase()} (${count} time${count === 1 ? '' : 's'}).`);
   }
   lines.push(...(noticed.length ? noticed : [`Still getting to know ${a.name}. Watch where they choose to spend their time.`]));
+
+  lines.push('#FAMILY');
+  const kin = familyOf(family.relatives, a.id);
+  const young = SPECIES[a.speciesId].life?.young ?? 'young';
+  lines.push(`${a.name} is ${a.sex === 'female' ? 'a female' : 'a male'}${a.stage === 'adult' ? '' : ` (${stageWord(a.stage, young)})`}.`);
+  if (a.birthDay !== undefined) lines.push(`Born at Willow Creek on day ${a.birthDay}.`);
+  if (kin.mother) lines.push(`Mother: ${kin.mother.name}.`);
+  if (kin.father) lines.push(`Father: ${kin.father.name}.`);
+  if (kin.siblings.length) lines.push(`Brothers and sisters: ${kin.siblings.map((x) => x.name).join(', ')}.`);
+  if (kin.children.length) lines.push(`Young: ${kin.children.map((x) => x.name).join(', ')}.`);
+  if (family.expecting) lines.push(`${a.name} is expecting a ${young}.`);
+  if (!kin.mother && !kin.father && !kin.children.length && !family.expecting) lines.push('No family recorded here yet.');
 
   const mine = cases.filter((c) => c.animalId === a.id);
   lines.push('#MEDICAL HISTORY');

@@ -4,6 +4,7 @@ import { Facing, SaveData, browserStore, writeSave } from '../core/save';
 import { NOTES, NOTE_EVENT_TEXT } from '../data/notes';
 import { Clock, formatTime, newClock } from '../systems/clock';
 import { storyLines } from '../systems/story';
+import { weatherFor, weatherLines } from '../systems/weather';
 import { History, ZooEvent, newHistory, photosUnlockedBy, recordEvent, unlockedPhotos } from '../systems/history';
 import { Slot, addItem } from '../systems/inventory';
 import {
@@ -279,8 +280,8 @@ export class StaffRoomScene extends Phaser.Scene {
   private openPanel(kind: 'bag' | 'tasks' | 'report' | 'terminal') {
     if (this.registry.get('modal') || this.leaving) return;
     if (kind === 'bag') this.sheet(bagSheet(this.inventory));
-    else if (kind === 'terminal') this.sheet(reportSheet(this.tasks, this.clock, `Care Terminal - Day ${this.clock.day}`, [{ id: 'end-shift', label: 'End Shift', color: 0x4f78b0 }], [], storyLines(this.history, this.flags)));
-    else this.sheet(reportSheet(this.tasks, this.clock, undefined, [], [], storyLines(this.history, this.flags)));
+    else if (kind === 'terminal') this.sheet(reportSheet(this.tasks, this.clock, `Care Terminal - Day ${this.clock.day}`, [{ id: 'end-shift', label: 'End Shift', color: 0x4f78b0 }], [], storyLines(this.history, this.flags), weatherLines(weatherFor(this.seed, this.clock.day))));
+    else this.sheet(reportSheet(this.tasks, this.clock, undefined, [], [], storyLines(this.history, this.flags), weatherLines(weatherFor(this.seed, this.clock.day))));
   }
 
   private onSheetAction(id: string) {

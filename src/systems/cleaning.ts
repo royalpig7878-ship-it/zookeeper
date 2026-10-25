@@ -51,14 +51,16 @@ export function validPiles(piles: readonly Pile[], spots: MessSpots): Pile[] {
 }
 
 /** Overnight, a little more mess appears. Deterministic for a given seed and day, and capped. */
-export function spawnOvernight(existing: readonly Pile[], seed: string, day: number, spots: MessSpots): Pile[] {
+export function spawnOvernight(
+  existing: readonly Pile[], seed: string, day: number, spots: MessSpots, extra: Partial<Record<ChoreKind, number>> = {},
+): Pile[] {
   const rng = new Rng(`${seed}:piles:${day}`);
   const result = [...existing];
   for (const kind of CHORE_KINDS) {
     const list = spotList(spots, kind);
     const def = CHORES[kind];
     if (list.length === 0 || def.nightly === 0) continue;
-    let toAdd = def.nightly;
+    let toAdd = def.nightly + (extra[kind] ?? 0);
     for (let tries = 0; tries < 20 && toAdd > 0; tries++) {
       if (countKind(result, kind) >= def.max) break;
       const { x, y } = list[rng.int(0, list.length - 1)];

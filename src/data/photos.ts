@@ -39,6 +39,11 @@ export const PHOTOS: PhotoDef[] = [
     unlockKey: 'case1-examined',
   },
   {
+    id: 'new-arrival', title: 'A New Arrival',
+    caption: 'The first young animal born at Willow Creek in your time here, tucked up close to its mother.',
+    unlockKey: 'first-birth',
+  },
+  {
     id: 'recovered', title: 'Back to Normal',
     caption: 'Buster at the feeder, eating like himself again. Daniel took this and stuck it on the wall without asking.',
     unlockKey: 'case1-recovered',

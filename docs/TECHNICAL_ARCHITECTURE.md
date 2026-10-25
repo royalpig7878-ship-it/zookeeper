@@ -35,6 +35,13 @@ Pure modules in `src/systems/` (all unit-tested without Phaser):
 
 World freezes (`registry.paused`) behind the pause menu and any sheet. Dialogues and the inspect panel do not freeze it.
 
+## The living zoo (Milestone 10)
+- Pure logic, no Phaser: `systems/life.ts` (sexes, stages, `pairBlockers` which explains why a pair cannot breed, `maybeConceive`, `dueBirths`, `makeNewborn`, `familyOf`, `validateLife`), `systems/weather.ts` (`weatherFor(seed, day)`), `systems/offline.ts` (`awayMinutes` with its threshold and cap, `pickScenario`), `data/scenarios.ts`. Per-species breeding rules are the optional `life` block in `data/animals/species.ts` (elephants have none).
+- Everything is decided once at the start of a day, from `Rng` seeded with the zoo seed and the day (`seed:conceive:day`, `seed:weather:day`, `seed:scenario:day`), so it is repeatable and there are no loops over time.
+- `AnimalState` gained `sex`, `stage`, `birthDay`, `motherId`, `fatherId`. `simulation.ts` makes young animals stay near their mother and move slower, and applies the weather's `thirstMul`.
+- `GameScene.livingTick` runs after the vet step in `performEndOfDay`: growth, births (`bornAnimal`), a new pregnancy, and the random happening. The care that counts is taken as a snapshot before the night's new mess appears (`careSnapshot`), so the keeper is judged on what they did, not on the overnight mess. `catchUpAway` handles time away when a save is continued.
+- The weather look is drawn by `UIScene` (`ui:weather`): a grey rectangle and a few dozen rain streaks, cheap enough for a phone.
+
 ## Story (Milestone 9)
 - `data/story.ts` holds the chapters (steps with an objective, a hint and a key; a finale with an optional note) and Daniel's lines. `systems/story.ts` derives everything from the zoo history and story flags: `storyState` (current chapter, step, progress), `newlyCompleted` (chapters done but not yet celebrated), `danielTalk`, `storyLines` and `objectiveText`. Nothing is stored separately, so the save format did not change.
 - `GameScene` shows the goal (`ui:objective` to the HUD), places Daniel (`createDaniel`, `talk` interaction), records the conversation, and finishes chapters (`finishChapters`: records the milestone once, delivers the finale note). The staff room scene shows the same STORY lines in its report.
@@ -92,7 +99,10 @@ World freezes (`registry.paused`) behind the pause menu and any sheet. Dialogues
 ## Collision
 Tile grid. The player is a small square around their feet; each axis is moved separately so they slide along walls (`moveWithCollision`).
 
-## Save format (version 7)
+## Save format (version 8)
+Version 8 adds, per animal, `sex`, `birthDay`, `motherId` and `fatherId`, and at the top level `life` (`{ pregnancies, births, lastBirthDay, nextPregnancyId, lastScenarioDay }`). Older saves load: animals without a sex get the one the roster would give them, and there are no life records. Version 7 notes follow.
+
+### Version 7 base
 Version 7 adds `medical` (`{ cases, nextId, lastOnsetDay }`; each case has its condition, stage, visit, doses, progress and a written log). Older saves load with no medical records. Version 6 notes follow.
 
 ### Version 6 base

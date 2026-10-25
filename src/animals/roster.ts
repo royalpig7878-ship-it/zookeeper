@@ -5,6 +5,7 @@ import { profileOf } from '../data/animals/profiles';
 import { Trait } from '../data/animals/types';
 import { HabitatInfo } from '../world/types';
 import { tileCenter } from '../world/types';
+import { assignSexes } from '../systems/life';
 import { newMemory } from './memory';
 import { newNeeds } from './needs';
 import { AnimalState, createAnimal } from './simulation';
@@ -51,6 +52,7 @@ export function createRoster(seed: string, habitat: HabitatInfo, taken: Set<stri
       newMemory(profile.startFamiliarity), profile.affinity, habitat.id,
     );
     buster.tint = 0.5;
+    buster.sex = 'male';
     taken.add('Buster');
     return [buster];
   }
@@ -58,6 +60,7 @@ export function createRoster(seed: string, habitat: HabitatInfo, taken: Set<stri
   const names = pickDistinct(species.names.filter((n) => !taken.has(n) && !RESERVED_NAMES.includes(n)), species.count, rng);
   const roster = ROSTER[species.id];
   const spots = availableSpots(habitat);
+  const sexes = assignSexes(seed, habitat.id, species.count);
   for (let i = 0; i < species.count; i++) {
     const start = stations.starts[i % stations.starts.length];
     const name = names[i] ?? `${species.displayName.split(' ').pop()} ${i + 1}`;
@@ -81,6 +84,7 @@ export function createRoster(seed: string, habitat: HabitatInfo, taken: Set<stri
         affinity,
       },
     );
+    a.sex = sexes[i];
     a.tint = rng.next();
     a.facing = rng.next() < 0.5 ? 'left' : 'right';
     out.push(a);

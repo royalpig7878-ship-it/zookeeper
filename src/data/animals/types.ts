@@ -57,4 +57,24 @@ export interface SpeciesDef {
   swim?: boolean;
   /** how much it likes each enrichment item (0 = ignores it) */
   enrichment: Record<string, number>;
+  /** breeding and growing up. Missing means this species does not breed in this zoo. */
+  life?: LifeRules;
+}
+
+/** Simplified, species-specific rules for babies (game days, not real biology). */
+export interface LifeRules {
+  /** the name of a young one, for text ("foal", "cub") */
+  young: string;
+  /** a pair can only breed once both are at least this old */
+  adultAgeYears: number;
+  gestationDays: number;
+  /** days before the same mother can conceive again */
+  cooldownDays: number;
+  /** newborn stage lasts this many days, then juvenile until `juvenileDays`, then adult */
+  babyDays: number;
+  juvenileDays: number;
+  /** the habitat will not hold more animals than this */
+  maxPopulation: number;
+  /** how well the two must get on (average liking, -100 to 100). Solitary species need only that they are not enemies. */
+  minRelation: number;
 }

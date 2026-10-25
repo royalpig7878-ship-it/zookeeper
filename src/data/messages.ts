@@ -54,6 +54,14 @@ export const MESSAGES: StaffMessage[] = [
     text: 'Thanks for listening earlier. Not many people have heard that about Buster and Matilda.',
   },
   {
+    id: 'priya-expecting', from: 'Dr. Shah', minDay: 6, requiresKey: 'first-pregnancy',
+    text: 'I hear there is a little one on the way. Keep the feeder full and the habitat clean, and I will be nearby if you need me.',
+  },
+  {
+    id: 'daniel-baby', from: 'Daniel', minDay: 6, requiresKey: 'first-birth',
+    text: 'A new arrival at Willow Creek! Margaret would have loved this. Let the family settle and keep things calm.',
+  },
+  {
     id: 'priya-notes', from: 'Dr. Shah', minDay: 3,
     text: "Buster's check-up is coming up. Keep an eye on how he eats and where he rests.",
   },

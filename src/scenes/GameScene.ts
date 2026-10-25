@@ -26,6 +26,12 @@ import { INVENTORY_SLOTS, Slot, addItem, countItem, hasItem, removeItem, roomFor
 import { bagSheet, clinicSheet, enrichSheet, historySheet, medicalSheet, recipesSheet, reportSheet, shedSheet, storeSheet } from '../systems/sheets';
 import { chapterCompleteKey, danielTalk, newlyCompleted, objectiveText, storyLines } from '../systems/story';
 import { NOTES } from '../data/notes';
+import { SCENARIOS } from '../data/scenarios';
+import {
+  HabitatCare, LifeAnimal, LifeState, STAGE_SCALE, assignSexes, dueBirths, lifeOf, makeNewborn, maybeConceive, newLife, stageOf, stageWord,
+} from '../systems/life';
+import { awayMessWaves, awayMinutes, describeAway, pickScenario } from '../systems/offline';
+import { WeatherDef, weatherFor, weatherLines } from '../systems/weather';
 import { TaskEvent, TaskState, applyTaskEvent, createTasks, summary } from '../systems/tasks';
 import {
   Candidate, DayCare, MedicalCase, MedicalState, activeCases, caseFor, collectMedicine, defOf, endOfDay, examine, giveDose,
@@ -121,6 +127,10 @@ export class GameScene extends Phaser.Scene {
   private history: History = newHistory();
   private flags = new Set<string>();
 
+  // living zoo
+  private life: LifeState = newLife();
+  private weather!: WeatherDef;
+
   // story
   /** the goal last shown in the HUD (undefined until the first time it is shown) */
   private lastObjective: string | undefined;
@@ -165,6 +175,7 @@ export class GameScene extends Phaser.Scene {
     this.history = data.save?.history ?? newHistory();
     this.flags = new Set(data.save?.flags ?? []);
     this.sinceSave = 0;
+    this.life = data.save?.life ? JSON.parse(JSON.stringify(data.save.life)) : newLife();
     this.medical = data.save?.medical ? JSON.parse(JSON.stringify(data.save.medical)) : newMedical();
     this.fedToday = new Set();
     this.enrichedToday = new Set();
@@ -256,7 +267,9 @@ export class GameScene extends Phaser.Scene {
       this.emitTime(true);
       this.game.events.emit('ui:daylight', daylight(this.clock.minutes));
       this.updateObjective(false);
+      this.applyWeather();
       if (this.isFresh) this.openPanel('report');
+      else if (this.startSave && !this.arriveAt && !this.endShiftOnStart) this.catchUpAway();
       if (this.endShiftOnStart) this.time.delayedCall(250, () => this.performEndOfDay());
     });
 
@@ -367,6 +380,7 @@ export class GameScene extends Phaser.Scene {
     this.clock = sv?.clock ? { ...sv.clock } : newClock();
     this.inventory = sv?.inventory ? sv.inventory.map((s) => ({ ...s })) : [];
     this.piles = sv?.piles ? validPiles(sv.piles.map((p) => ({ ...p })), this.messSpots) : initialPiles(this.messSpots);
+    this.weather = weatherFor(this.seed, this.clock.day);
     this.tasks = sv?.tasks ? sv.tasks.map((t) => ({ ...t })) : this.newTasks();
     for (const p of this.piles) this.addPileView(p);
     this.rebuildInteractables();
@@ -400,6 +414,7 @@ export class GameScene extends Phaser.Scene {
       noteRead: this.discovered.has('note-margaret'),
       lockerOpened: this.flags.has('locker-opened'),
       habitats: [...this.habitats.values()].filter((h) => h.info.id !== 'elephant').map((h) => ({ id: h.info.id, group: h.species.group })),
+      expecting: this.life.pregnancies.map((p) => ({ id: p.motherId, name: this.animals.find((v) => v.state.id === p.motherId)?.state.name ?? 'an animal' })),
       grounds: {
         weeds: n('weeds'), branch: n('branch'), dry: n('dry'), hedge: n('hedge'), repair: n('repair'),
         litter: n('litter'), pondweed: n('pondweed'), lost: n('lost'),
@@ -460,7 +475,7 @@ export class GameScene extends Phaser.Scene {
         // A new zoo, an older save, or a habitat that gained residents: the roster fills in the rest.
         for (const r of createRoster(this.seed, rt.info, taken)) if (!states.some((s) => s.id === r.id)) states.push(r);
       }
-      for (const st of states.slice(0, rt.species.count)) this.animals.push(this.makeView(st));
+      for (const st of states) this.animals.push(this.makeView(st));
     }
   }
 
@@ -472,7 +487,9 @@ export class GameScene extends Phaser.Scene {
       traits: a.traits, needs: a.needs, activity: 'idle', timer: 1, stuck: 0,
       memory: a.memory ?? newMemory(profileOf(a.id)?.startFamiliarity ?? 15),
       affinity: profile?.affinity ?? {}, profile: a.profile, speedMul: 1, fleeCooldown: 0, tint: a.tint ?? 0.5, signals: [],
+      sex: a.sex ?? this.founderSex(a.id, rt.info.id), stage: 'adult', birthDay: a.birthDay, motherId: a.motherId, fatherId: a.fatherId,
     };
+    st.stage = stageOf(lifeOf(st.speciesId), st.birthDay, this.clock.day);
     // A saved spot is only trusted if it is still somewhere the animal can stand (e.g. the layout changed).
     if (collides(st.x, st.y, rt.species.radius, rt.world.isBlocked)) {
       const start = rt.info.stations!.starts[0];
@@ -821,6 +838,7 @@ export class GameScene extends Phaser.Scene {
     sp.setTexture(`${s.sprite.key}_${pose}`);
     sp.setOrigin(0.5, pose === 'swim' ? 0.6 : s.sprite.footY / s.sprite.h);
     sp.setFlipX(a.facing === 'left');
+    sp.setScale(STAGE_SCALE[a.stage]);
     sp.setAlpha(alpha);
     // A little individual variation in colour, so animals of one species are not identical twins.
     const v = Math.floor(222 + 33 * a.tint);
@@ -836,7 +854,7 @@ export class GameScene extends Phaser.Scene {
     else if (this.sickIds.has(a.id)) icon = 'bubble_sick';
     else if (a.needs.energy <= s.thresholds.tired) icon = 'bubble_sleep';
     if (icon && a.activity !== 'eating' && a.activity !== 'drinking') {
-      view.bubble.setTexture(icon).setVisible(true).setPosition(a.x + (a.facing === 'left' ? -10 : 10), a.y - s.sprite.footY - 14);
+      view.bubble.setTexture(icon).setVisible(true).setPosition(a.x + (a.facing === 'left' ? -10 : 10), a.y - s.sprite.footY * STAGE_SCALE[a.stage] - 14);
     } else view.bubble.setVisible(false);
   }
 
@@ -1278,6 +1296,11 @@ export class GameScene extends Phaser.Scene {
       a.memory.inspectDay = this.clock.day;
       this.bond(view, 2);
     }
+    const preg = this.life.pregnancies.find((p) => p.motherId === a.id);
+    if (preg && !preg.checked) {
+      preg.checked = true;
+      this.taskEvent(`monitor:${a.id}`);
+    }
     this.pushInspect(view);
     this.taskEvent('animal-inspected');
     const sick = caseFor(this.medical, a.id);
@@ -1291,11 +1314,12 @@ export class GameScene extends Phaser.Scene {
     const s = SPECIES[a.speciesId];
     const n = a.needs;
     const sick = caseFor(this.medical, a.id);
+    const expecting = this.life.pregnancies.some((p) => p.motherId === a.id);
     const col = (g: number) => ({ good: 0x5fae70, fair: 0xe0b840, poor: 0xd8553f })[levelOf(g)];
     const data: InspectData = {
       name: a.name,
-      subtitle: s.displayName,
-      activity: ACTIVITY_TEXT[a.activity],
+      subtitle: a.stage === 'adult' ? s.displayName : `${s.displayName}, ${stageWord(a.stage, s.life?.young ?? 'young')}`,
+      activity: ACTIVITY_TEXT[a.activity] + (this.life.pregnancies.some((p) => p.motherId === a.id) ? ', expecting' : ''),
       bars: [
         { label: 'Fed', value: 100 - n.hunger, color: col(100 - n.hunger) },
         { label: 'Water', value: 100 - n.thirst, color: col(100 - n.thirst) },
@@ -1304,7 +1328,7 @@ export class GameScene extends Phaser.Scene {
         { label: 'Health', value: n.health, color: col(n.health) },
         { label: 'Bond', value: a.memory.familiarity, color: 0xd88ab8 },
       ],
-      tips: sick ? [statusLine(sick, a.name), ...(sick.stage === 'treating' ? [defOf(sick).care.text] : defOf(sick).symptoms.slice(0, 2))] : careAdvice(a, this.habitats.get(a.habitatId)!.world).slice(0, 2),
+      tips: expecting && !sick ? [`${a.name} is expecting a ${s.life?.young ?? 'young one'}. Keep the feeder full and the habitat clean.`, ...careAdvice(a, this.habitats.get(a.habitatId)!.world).slice(0, 1)] : sick ? [statusLine(sick, a.name), ...(sick.stage === 'treating' ? [defOf(sick).care.text] : defOf(sick).symptoms.slice(0, 2))] : careAdvice(a, this.habitats.get(a.habitatId)!.world).slice(0, 2),
       traits: a.traits.map((t) => TRAITS[t].label.toLowerCase()),
       vet: sick ? 'Health' : undefined,
     };
@@ -1321,12 +1345,12 @@ export class GameScene extends Phaser.Scene {
       const view = this.lastInspected ?? this.buster;
       if (view) {
         const names = Object.fromEntries(this.animals.map((v) => [v.state.id, v.state.name]));
-        this.game.events.emit('ui:sheet', historySheet(view.state, this.history, names, this.medical.cases));
+        this.game.events.emit('ui:sheet', historySheet(view.state, this.history, names, this.medical.cases, this.familyInfo(view.state)));
       }
     } else {
       const title = kind === 'report' ? `Morning Report - Day ${this.clock.day}` : undefined;
       const names = this.animalNames();
-      this.game.events.emit('ui:sheet', reportSheet(this.tasks, this.clock, title, [], activeCases(this.medical).map((c) => statusLine(c, names[c.animalId] ?? 'An animal')), storyLines(this.history, this.flags)));
+      this.game.events.emit('ui:sheet', reportSheet(this.tasks, this.clock, title, [], activeCases(this.medical).map((c) => statusLine(c, names[c.animalId] ?? 'An animal')), storyLines(this.history, this.flags), weatherLines(this.weather)));
     }
   }
 
@@ -1424,6 +1448,7 @@ export class GameScene extends Phaser.Scene {
           this.record({ category: 'care', animalId: rt.info.id === 'elephant' ? 'buster' : undefined, key: `thirsty-night-${rt.info.id}-${day}`, text: `The water trough was empty overnight and ${who} went to bed thirsty.` });
         }
       }
+      const careSnap = this.careSnapshot();
       const vetLines = this.medicalOvernight(day);
       const returned = this.collectEnrichment();
       if (returned.length > 0) lines.push(`Staff collected the enrichment items (${returned.join(', ')}). They are back in your bag.`);
@@ -1432,7 +1457,12 @@ export class GameScene extends Phaser.Scene {
       const leavesBefore = countKind(this.piles, 'leaves');
       for (const v of this.pileViews.values()) v.destroy();
       this.pileViews.clear();
-      this.piles = spawnOvernight(this.piles, this.seed, day + 1, this.messSpots);
+      const todayWeather = this.weather;
+      const scenario = pickScenario(this.seed, day + 1, this.life.lastScenarioDay);
+      const mess = scenario?.effect.kind === 'mess' ? scenario.effect : null;
+      this.piles = spawnOvernight(this.piles, this.seed, day + 1, this.messSpots, {
+        leaves: todayWeather.extraLeaves + (mess?.leaves ?? 0), branch: todayWeather.extraBranches, litter: mess?.litter ?? 0,
+      });
       // On the second morning something shiny turns up in the pond (once only).
       const lostSpot = this.messSpots.lost?.[0];
       if (day + 1 === 2 && !this.flags.has('lost-spawned') && lostSpot) {
@@ -1466,14 +1496,20 @@ export class GameScene extends Phaser.Scene {
       this.emitTime(true);
       this.game.events.emit('ui:daylight', daylight(this.clock.minutes));
 
-      const started = this.maybeNewCase();
+      this.weather = weatherFor(this.seed, this.clock.day);
+      this.applyWeather();
+      const started = this.maybeNewCase(careSnap);
       if (started) vetLines.push(started);
+      const living = this.livingTick(this.clock.day, careSnap, scenario);
+      this.tasks = this.newTasks();
       this.fedToday.clear();
       this.enrichedToday.clear();
       this.syncMedical();
       if (vetLines.length) lines.push('#VET CARE', ...vetLines);
+      if (living.length) lines.push('#LIVING ZOO', ...living);
 
       lines.push('#TOMORROW');
+      lines.push(...weatherLines(this.weather).map((l, i) => (i === 0 ? `Weather: ${l}` : l)));
       lines.push(`New mess overnight: ${newDung} waste, ${newLeaves} leaf piles.`);
       if (regrown.length > 0) lines.push(`Some of the lawn has grown back (${regrown.length} patches). The mower is fully charged.`);
       lines.push(`Day ${this.clock.day} starts at ${formatTime(this.clock.minutes)}. Your shift runs until ${formatTime(SHIFT_END)}.`);
@@ -1487,6 +1523,166 @@ export class GameScene extends Phaser.Scene {
         buttons: [{ id: 'start-day', label: `Start Day ${this.clock.day}`, color: 0x3f8f58 }],
       } satisfies SheetData);
     });
+  }
+
+  // ------------------------------------------------------------ the living zoo
+  /** Animals from older saves have no sex recorded: they get the one the roster would give them. */
+  private founderSex(id: string, habitatId: string): 'female' | 'male' {
+    if (id === 'buster') return 'male';
+    const species = this.habitats.get(habitatId)?.species;
+    const index = Number(id.split('-').pop()) - 1;
+    if (!species || !Number.isInteger(index) || index < 0) return 'female';
+    return assignSexes(this.seed, habitatId, species.count)[index] ?? 'female';
+  }
+
+  /** Show today's weather and make animals feel it (a hot day means more thirst). */
+  private applyWeather() {
+    for (const rt of this.habitats.values()) rt.world.thirstMul = this.weather.thirstMul;
+    this.game.events.emit('ui:weather', { dim: this.weather.dim, rain: this.weather.rain, fog: this.weather.fog });
+  }
+
+  /** What was done for each habitat today, in the terms the life-cycle rules use. */
+  private careSnapshot(): Record<string, DayCare> {
+    return Object.fromEntries([...this.habitats.keys()].map((id) => [id, this.careToday(id)]));
+  }
+
+  private familyInfo(a: AnimalState) {
+    return {
+      relatives: this.animals.map((v) => ({ id: v.state.id, name: v.state.name, motherId: v.state.motherId, fatherId: v.state.fatherId })),
+      expecting: this.life.pregnancies.some((p) => p.motherId === a.id),
+    };
+  }
+
+  private lifeAnimal(v: AnimalView): LifeAnimal {
+    const a = v.state;
+    return {
+      id: a.id, name: a.name, speciesId: a.speciesId, habitatId: a.habitatId, sex: a.sex, ageYears: a.profile?.ageYears ?? profileOf(a.id)?.ageYears ?? 6,
+      birthDay: a.birthDay, health: a.needs.health, relations: a.memory.relations, ill: !!caseFor(this.medical, a.id),
+      motherId: a.motherId, fatherId: a.fatherId,
+    };
+  }
+
+  /**
+   * The start of a new day: young animals grow, pregnancies move on, births happen, and a pregnancy or a
+   * random happening may begin. Everything is one small calculation per animal, with nothing looped over time.
+   */
+  private livingTick(day: number, care: Record<string, HabitatCare>, scenario: ReturnType<typeof pickScenario>): string[] {
+    const lines: string[] = [];
+    // growing up
+    for (const v of this.animals) {
+      const a = v.state;
+      const stage = stageOf(lifeOf(a.speciesId), a.birthDay, day);
+      if (stage !== a.stage) {
+        a.stage = stage;
+        const young = SPECIES[a.speciesId].life?.young ?? 'young';
+        lines.push(stage === 'adult' ? `${a.name} has grown up.` : `${a.name} is growing: now a young ${young}.`);
+        this.record({ category: 'milestone', animalId: a.id, key: `grew-${a.id}-${stage}`, text: stage === 'adult' ? `${a.name} grew up.` : `${a.name} grew into a young ${young}.` });
+      }
+    }
+    // births
+    for (const b of dueBirths(this.life, day, care)) {
+      const mother = this.animals.find((v) => v.state.id === b.pregnancy.motherId);
+      const father = this.animals.find((v) => v.state.id === b.pregnancy.fatherId);
+      if (!mother || !father) continue;
+      this.bornAnimal(b.pregnancy, mother, father, day, lines);
+    }
+    // a new pregnancy
+    const lifeAnimals = this.animals.map((v) => this.lifeAnimal(v));
+    const p = maybeConceive(this.life, lifeAnimals, care, day, this.seed);
+    if (p) {
+      const mom = this.animals.find((v) => v.state.id === p.motherId)!.state;
+      const young = SPECIES[mom.speciesId].life?.young ?? 'young one';
+      this.record({ category: 'milestone', animalId: mom.id, key: 'first-pregnancy', text: `${mom.name} is expecting the first young of your time at Willow Creek.` });
+      this.record({ category: 'care', animalId: mom.id, key: `${p.id}-started`, text: `${mom.name} is expecting a ${young}, due around day ${p.dueDay}.` });
+      lines.push(`${mom.name} is expecting a ${young}, due around day ${p.dueDay}. Dr. Shah has been told. Keep the feeder full and the habitat clean.`);
+    }
+    // a random happening
+    if (scenario) {
+      this.life.lastScenarioDay = day;
+      const line = this.applyScenario(scenario);
+      lines.push(scenario.text, ...(line ? [line] : []));
+      this.record({ category: 'milestone', key: `scenario-${day}`, text: `${scenario.title}: ${scenario.text}` });
+    }
+    return lines;
+  }
+
+  /** Create a newborn in its mother's habitat. */
+  private bornAnimal(p: LifeState['pregnancies'][number], mother: AnimalView, father: AnimalView, day: number, lines: string[]) {
+    const taken = new Set(this.animals.map((v) => v.state.name));
+    const baby = makeNewborn(this.seed, p, { speciesId: mother.state.speciesId, name: mother.state.name, traits: mother.state.traits }, father.state, taken, day, this.life.births);
+    const m = mother.state;
+    const st: AnimalState = {
+      id: baby.id, speciesId: baby.speciesId, name: baby.name, habitatId: baby.habitatId, x: m.x + 12, y: m.y, facing: m.facing, traits: baby.traits,
+      needs: { hunger: 30, thirst: 30, energy: 85, happiness: 85, health: 100 }, activity: 'idle', timer: 2, stuck: 0,
+      memory: newMemory(Math.round((m.memory.familiarity + 15) / 2)), affinity: { ...m.affinity }, speedMul: 1, fleeCooldown: 0,
+      tint: Math.min(1, Math.max(0, m.tint + (new Rng(`${this.seed}:tint:${baby.id}`).next() - 0.5) * 0.2)), signals: [], sex: baby.sex, stage: 'baby', birthDay: day,
+      motherId: baby.motherId, fatherId: baby.fatherId,
+      profile: { ageYears: 0, backstory: [`Born at Willow Creek on day ${day} to ${m.name} and ${father.state.name}.`], affinity: {} },
+    };
+    this.animals.push(this.makeView(st));
+    const young = SPECIES[st.speciesId].life?.young ?? 'young one';
+    this.record({ category: 'milestone', animalId: st.id, key: 'first-birth', text: `The first young animal of your time here was born: ${st.name}, a ${young} to ${m.name}.` });
+    this.record({ category: 'milestone', animalId: st.id, key: `birth-${st.id}`, text: `${m.name} had a ${young}: ${st.name}.` });
+    lines.push(`${m.name} had a ${young}! Welcome, ${st.name}.`);
+  }
+
+  private applyScenario(s: (typeof SCENARIOS)[number]): string | null {
+    const e = s.effect;
+    if (e.kind === 'mood') {
+      for (const v of this.animals) v.state.needs.happiness = Math.min(100, v.state.needs.happiness + e.amount);
+      return null;
+    }
+    if (e.kind === 'health') {
+      for (const v of this.animals) v.state.needs.health = Math.min(100, v.state.needs.health + e.amount);
+      return null;
+    }
+    if (e.kind === 'bond') {
+      const pick = this.animals[new Rng(`${this.seed}:photo:${this.clock.day}`).int(0, this.animals.length - 1)];
+      if (pick) {
+        this.bond(pick, e.amount);
+        return `${pick.state.name} was the star of the afternoon.`;
+      }
+      return null;
+    }
+    if (e.kind === 'gift') {
+      const added = addItem(this.inventory, e.item, e.qty);
+      return added > 0 ? `+${added} ${ITEMS[e.item].name.toLowerCase()} in your bag.` : 'Your bag was full, so she kept them for later.';
+    }
+    return null; // mess is handled when the piles are made
+  }
+
+  /** Coming back after a while: the animals rested and ate a little, a little mess appeared. Nothing was lost. */
+  private catchUpAway() {
+    const minutes = awayMinutes(this.startSave?.savedAt ?? 0, Date.now());
+    if (minutes === null) return;
+    const lines: string[] = [`You were away for ${describeAway(minutes)}. The day has not moved on, and nobody went without.`, '#THE ANIMALS'];
+    for (const rt of this.habitats.values()) {
+      const mine = this.animalsIn(rt.info.id);
+      let ate = 0;
+      for (const v of mine) {
+        ate += overnight(v.state, rt.world, minutes).ate;
+        v.sprite.setPosition(v.state.x, v.state.y);
+      }
+      const who = rt.info.id === 'elephant' ? mine[0].state.name : `The ${rt.species.group}`;
+      if (ate > 1) lines.push(`${who} rested and ate a little from the feeder.`);
+      else if (rt.food.amount <= 0) lines.push(`${who} rested. The feeder was empty, so there is a little hunger, but all is fine.`);
+      else lines.push(`${who} rested.`);
+    }
+    const waves = awayMessWaves(minutes);
+    if (waves > 0) {
+      const before = this.piles.length;
+      for (let k = 0; k < waves; k++) this.piles = spawnOvernight(this.piles, this.seed, 1000 + this.clock.day * 10 + k, this.messSpots);
+      for (const v of this.pileViews.values()) v.destroy();
+      this.pileViews.clear();
+      for (const p of this.piles) this.addPileView(p);
+      this.rebuildInteractables();
+      const added = this.piles.length - before;
+      if (added > 0) lines.push('#IN THE PARK', `A little more mess has appeared (${added} job${added === 1 ? '' : 's'}).`);
+    }
+    this.save(false); // the new "last saved" time means this is never counted twice
+    this.game.events.emit('ui:sheet', {
+      title: 'Welcome back', lines, buttons: [{ id: 'close', label: 'Carry on' }],
+    } satisfies SheetData);
   }
 
   // ------------------------------------------------------------ story
@@ -1710,10 +1906,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Does an animal fall ill tonight? Neglect makes it likelier; good care keeps most problems away. */
-  private maybeNewCase(): string | null {
+  private maybeNewCase(snap: Record<string, DayCare>): string | null {
     const candidates: Candidate[] = this.animals.map((v) => {
       const rt = this.habitats.get(v.state.habitatId)!;
-      const care = this.careToday(v.state.habitatId);
+      const care = snap[v.state.habitatId] ?? this.careToday(v.state.habitatId);
       return {
         animalId: v.state.id, habitatId: v.state.habitatId, speciesId: v.state.speciesId,
         ageYears: v.state.profile?.ageYears ?? profileOf(v.state.id)?.ageYears ?? 10,
@@ -1749,7 +1945,7 @@ export class GameScene extends Phaser.Scene {
       animals: this.animals.map(({ state: a }) => ({
         id: a.id, speciesId: a.speciesId, name: a.name, x: Math.round(a.x), y: Math.round(a.y),
         facing: a.facing, traits: a.traits, needs: { ...a.needs }, activity: a.activity,
-        habitatId: a.habitatId, tint: a.tint, profile: a.profile,
+        habitatId: a.habitatId, tint: a.tint, profile: a.profile, sex: a.sex, birthDay: a.birthDay, motherId: a.motherId, fatherId: a.fatherId,
         memory: {
           ...a.memory, spots: { ...a.memory.spots }, learned: [...a.memory.learned],
           relations: { ...a.memory.relations }, plays: { ...a.memory.plays },
@@ -1762,6 +1958,7 @@ export class GameScene extends Phaser.Scene {
       history: { events: this.history.events.map((e) => ({ ...e })), nextId: this.history.nextId },
       flags: [...this.flags],
       medical: JSON.parse(JSON.stringify(this.medical)) as MedicalState,
+      life: JSON.parse(JSON.stringify(this.life)) as LifeState,
     };
   }
 

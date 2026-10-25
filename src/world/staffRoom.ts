@@ -92,6 +92,6 @@ export function buildStaffRoom(): RoomLayout {
     objects,
     interactables,
     spawn: { x: 11, y: ROOM_H - 2 },
-    frames: [10, 11, 12, 13, 14, 15, 18].map((x) => ({ x, y: 1 })),
+    frames: [6, 10, 11, 12, 13, 14, 15, 18].map((x) => ({ x, y: 1 })),
   };
 }

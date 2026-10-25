@@ -8,7 +8,9 @@ export type TaskEvent =
   | 'kit-collected' | 'grass-mowed'
   | TaskEventName
   /** per-habitat care for the animals other than Buster, e.g. "fed:zebra" */
-  | `fed:${string}` | `watered:${string}` | `enriched:${string}`;
+  | `fed:${string}` | `watered:${string}` | `enriched:${string}`
+  /** checking on an expecting mother, e.g. "monitor:zebra-2" */
+  | `monitor:${string}`;
 
 /** Every event name, for validating saved games. */
 export const ALL_TASK_EVENTS: readonly TaskEvent[] = [
@@ -54,6 +56,8 @@ export interface TaskContext {
   grounds?: GroundsContext;
   /** the other inhabited habitats (everyone except Buster's elephants) */
   habitats?: { id: string; group: string }[];
+  /** animals that are expecting young, for the optional check-up task */
+  expecting?: { id: string; name: string }[];
 }
 
 const task = (id: string, title: string, priority: Priority, event: TaskEvent, needed = 1): TaskState => ({
@@ -77,6 +81,7 @@ export function createTasks(c: TaskContext): TaskState[] {
   for (const h of c.habitats ?? []) {
     t.push(task(`enrich-${h.id}`, `Give the ${h.group} something to play with (enrichment, gate)`, 'optional', `enriched:${h.id}`));
   }
+  for (const e of c.expecting ?? []) t.push(task(`monitor-${e.id}`, `Check on ${e.name}, who is expecting (inspect her)`, 'optional', `monitor:${e.id}`));
   if (c.dungCount > 0) t.push(task('waste', 'Shovel waste from the elephant habitat', 'routine', 'waste-cleared', c.dungCount));
   if (c.leafCount > 0) t.push(task('leaves', 'Sweep fallen leaves from the paths', 'grounds', 'leaves-swept', c.leafCount));
   if (g) {

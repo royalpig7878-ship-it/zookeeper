@@ -38,7 +38,7 @@ describe('story data', () => {
 
   it('every message and photograph only appears after something that can really happen', () => {
     const storyKeys = new Set(CHAPTERS.flatMap((c) => c.steps.map((s) => s.key)));
-    const known = new Set([...storyKeys, 'recovered-spanner', 'discovered-photo-old', 'shift-complete-1', 'learned-dust', 'greets', 'case1-started', 'case1-reported']);
+    const known = new Set([...storyKeys, 'recovered-spanner', 'discovered-photo-old', 'shift-complete-1', 'learned-dust', 'greets', 'case1-started', 'case1-reported', 'first-pregnancy', 'first-birth']);
     for (const m of MESSAGES) if (m.requiresKey) expect(known.has(m.requiresKey), m.id).toBe(true);
     for (const p of PHOTOS) expect(known.has(p.unlockKey), p.id).toBe(true);
     expect(new Set(PHOTOS.map((p) => p.id)).size).toBe(PHOTOS.length);

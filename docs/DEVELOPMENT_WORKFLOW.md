@@ -17,7 +17,7 @@ Status legend: **Done** (built and tested), **Partial**, **Not started**.
 | 7 | Multiple Animals | Done (see checklist; otter and real-phone test still pending) |
 | 8 | Veterinary Care | Done (see checklist; real-phone test still pending) |
 | 9 | Story | Done (Chapter 1 complete and playable; Chapter 2 is a first draft; see checklist; real-phone test still pending) |
-| 10 | Living Zoo | Not started |
+| 10 | Living Zoo | Done (see checklist; real-phone test and long-play balance still pending) |
 | 11 | Polish | Not started |
 
 ## Milestone 1 checklist
@@ -157,6 +157,22 @@ Honest notes: Dr. Shah is the keeper sprite with a blue tint (no unique art yet)
 
 Honest notes: Chapter 2's writing is a short first draft. Daniel is the keeper sprite with an orange tint (no unique art). The game's own actions were driven by script, with a few real clicks; it has not been played by hand on a phone. Chapters 3 to 6 are not written.
 
+## Milestone 10 checklist
+
+- [x] Between-shift simulation: the existing overnight step (one calculation per animal), plus new weather aftermath, growth, pregnancy and births, and a random happening, all decided once at the start of the day from the zoo seed. Nothing loops over missed time
+- [x] Time away: coming back after 15 minutes or more catches the animals up with one calculation (capped at 8 hours): rest, a little eating and drinking, a little mess. It never advances the day or the story, never starves anyone, and is reported in a "Welcome back" sheet. Saving updates the time, so it is never counted twice
+- [x] Weather (`systems/weather.ts`): seven kinds from the seed and day, forecast in the report and tomorrow's line, a screen tint with falling rain or fog, hotter days make animals thirstier, rain and storms bring extra leaves and branches, never two storms in a row, the first two days always clear
+- [x] Sexes and rules for babies (`systems/life.ts`, per-species `life` rules): one female and one male of the same species, both adult, healthy, not ill, fond enough of each other (species-specific), in a habitat that is fed and clean, with room, not close relatives, not recently a mother, one pregnancy at a time, nothing before day 6
+- [x] Pregnancy: recorded, announced, an optional monitoring task, care tips on the inspect panel; the birth waits at most two days for better care and then happens anyway
+- [x] Births and growth: a newborn is created with its own sex and personality (traits from its parents or its species), parents recorded, history entries, a new photograph and noticeboard messages; baby, juvenile and adult stages change its size and speed, and young animals stay near their mother
+- [x] Family-history: a Family section in every animal's story
+- [x] Animal relationships: families join the existing friendships; compatibility is species-specific (herds, pairs and colonies need to get on; solitary red pandas only need not to be enemies)
+- [x] Random scenarios (`data/scenarios.ts`): five mild happenings, at most one every three days
+- [x] Save version 8: `life` (pregnancies, births, last happening) and per-animal sex, birth day and parents. Older saves load: founders get the sex the roster would have given them, no life records
+- [x] 234 automated tests (45 new: breeding rules including relatives and cooldowns, conception rates and reproducibility, births and delay, newborns, growth stages, families, sexes, weather rules and effects, time away caps and no starvation, scenarios, family behaviour, saving). Browser: rain on screen, a forced pregnancy with the optional task and the inspect tip, a birth with a small newborn next to its mother, growth to juvenile and adult, the Family section, weather and a random happening in the day summary, and a three-hour absence giving the Welcome back note with nobody harmed
+
+Honest notes: pregnancy and birth were forced in the browser by calling the daily step with chosen days, because the real chance is small (about one a fortnight at best). The numbers (gestation, growth days, chance, relations needed) are first guesses and were not balanced by long play. The newborn is the adult picture drawn smaller, not a special baby sprite. Otters were left out, so a zoo has at most four kinds of animal besides Buster.
+
 ## Next steps
 
-Milestone 10: the living zoo. Between-shift simulation, relationships, baby animals, growth, breeding rules, weather and random scenarios. Earlier note for reference: Milestone 9 was story chapters. Earlier note for reference: seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)
+Milestone 11: polish (final art, animations, sound, settings, performance, accessibility, save recovery, mobile testing, production build). Earlier note for reference: Milestone 10 was the living zoo. Between-shift simulation, relationships, baby animals, growth, breeding rules, weather and random scenarios. Earlier note for reference: Milestone 9 was story chapters. Earlier note for reference: seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)
