@@ -39,6 +39,8 @@ import {
   markArrived, maybeStartCase, newMedical, readyForCheck, recordSymptoms, recoveryCheck, reportToVet, statusLine, visitDue,
 } from '../systems/medical';
 import { HabitatInfo, InteractAction, Interactable, Terrain, ZooLayout, buildZoo, tileCenter } from '../world/layout';
+import { INTERIOR_IDS, InteriorId, InteriorLayout, buildInterior, withEnterableBuildings } from '../world/interiors';
+import { ROOM_BG } from '../world/staffRoom';
 import { collides, moveWithCollision, nearestWithin } from '../world/movement';
 import type { SheetData } from '../ui/sheet';
 import type { InspectData } from './UIScene';
@@ -129,6 +131,18 @@ export class GameScene extends Phaser.Scene {
   private history: History = newHistory();
   private flags = new Set<string>();
 
+  // inside a building (the prep kitchen, the shed or the clinic)
+  private indoor: {
+    layout: InteriorLayout;
+    ox: number;
+    oy: number;
+    things: Phaser.GameObjects.GameObject[];
+    map: Phaser.Tilemaps.Tilemap;
+    interactables: Interactable[];
+    /** where the keeper steps back out to */
+    outside: { x: number; y: number };
+  } | null = null;
+
   // living zoo
   private life: LifeState = newLife();
   private weather!: WeatherDef;
@@ -188,6 +202,7 @@ export class GameScene extends Phaser.Scene {
     this.danielSpot = null;
     this.animals = [];
     this.habitats = new Map();
+    this.indoor = null;
     this.nearby = undefined;
     this.nearbyAnimal = undefined;
     this.contextLabel = null;
@@ -212,7 +227,8 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     // Saved games remember which generator version built their zoo, so old saves load the same park.
-    this.layoutData = buildZoo(this.seed, { version: this.startSave?.generatorVersion });
+    // Every zoo, old or new, has walk-in buildings: the kitchen, the shed and the clinic.
+    this.layoutData = withEnterableBuildings(buildZoo(this.seed, { version: this.startSave?.generatorVersion }));
     this.registry.set('seed', this.seed);
     const L = this.layoutData;
     this.cameras.main.setBackgroundColor('#1c2b1c');
@@ -469,6 +485,7 @@ export class GameScene extends Phaser.Scene {
       const r = h.info.rect;
       h.world.dirt = this.piles.filter((p) => p.kind === 'dung' && p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h).length;
     }
+    if (this.indoor) this.interactables = this.indoor.interactables; // inside a building only its own things can be used
   }
 
   /** Bring every habitat's animals to life: restored from the save, topped up from the zoo's roster. */
@@ -544,6 +561,12 @@ export class GameScene extends Phaser.Scene {
 
   private applyZoom() {
     const { width, height: h } = this.scale;
+    if (this.indoor) {
+      // A room is small: zoom in as far as it still fits the screen.
+      const fit = Math.min(width / (this.indoor.layout.width * TILE), h / (this.indoor.layout.height * TILE));
+      this.cameras.main.setZoom(Math.min(3, Math.max(1, Math.floor(fit * 2) / 2)));
+      return;
+    }
     const zoom = Math.max(1, Math.round(h / (TILE * 12)));
     // Held upright on a phone the screen is narrow, so show more of the park: zoom out a little.
     const portraitPhone = h > width && width < 600;
@@ -648,9 +671,9 @@ export class GameScene extends Phaser.Scene {
     }
     this.emitTime(false);
     const d = daylight(this.clock.minutes);
-    if (Math.abs(d - this.lastDaylight) > 0.01) {
+    if (Math.abs(d - this.lastDaylight) > 0.01 && !this.indoor) {
       this.lastDaylight = d;
-      this.game.events.emit('ui:daylight', d);
+      this.game.events.emit('ui:daylight', d); // rooms are lit the same all day
     }
   }
 
@@ -667,6 +690,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isBlocked(tx: number, ty: number): boolean {
+    if (this.indoor) {
+      const { layout, ox, oy } = this.indoor;
+      const rx = tx - ox;
+      const ry = ty - oy;
+      if (rx < 0 || ry < 0 || rx >= layout.width || ry >= layout.height) return true;
+      return layout.blocked[ry][rx];
+    }
     const L = this.layoutData;
     if (tx < 0 || ty < 0 || tx >= L.width || ty >= L.height) return true;
     return L.blocked[ty][tx];
@@ -777,6 +807,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startMower() {
+    if (this.indoor) return this.leaveBuilding(() => this.startMower()); // the mower is driven out through the shed door
     if (this.mode !== 'walk') return;
     this.battery = 100; // it has been sitting on its charger
     this.mode = 'mower';
@@ -1058,6 +1089,8 @@ export class GameScene extends Phaser.Scene {
       case 'enrich': return this.actEnrich(it.habitat ?? 'elephant');
       case 'pile': return this.actPile(it.id);
       case 'enter': return this.enterStaffRoom();
+      case 'building': return this.enterBuilding(it);
+      case 'exit': return this.leaveBuilding();
       case 'clinic': return this.game.events.emit('ui:sheet', clinicSheet(this.medical, this.animalNames()));
       case 'vetvisit': return this.assistVet();
       case 'talk': return this.talkDaniel();
@@ -1113,7 +1146,7 @@ export class GameScene extends Phaser.Scene {
     if (!r) return;
     const out = ITEMS[r.output].name.toLowerCase();
     if (!hasItem(this.inventory, r.requires)) {
-      return this.say('Prep counter', `You need the ${ITEMS[r.requires].name.toLowerCase()} to prepare meals. Get it at the food preparation door.`);
+      return this.say('Prep counter', `You need the ${ITEMS[r.requires].name.toLowerCase()} to prepare meals. Collect it from the rack in the food preparation building.`);
     }
     const need = Object.entries(r.inputs);
     if (need.some(([id, n]) => countItem(this.inventory, id) < n)) {
@@ -1422,6 +1455,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private performEndOfDay() {
+    if (this.indoor) this.leaveBuildingNow();
     this.transitioning = true;
     this.game.events.emit('ui:sheet-close');
     this.game.events.emit('ui:fade', { to: 1, duration: 700 });
@@ -1548,6 +1582,98 @@ export class GameScene extends Phaser.Scene {
         buttons: [{ id: 'start-day', label: `Start Day ${this.clock.day}`, color: 0x3f8f58 }],
       } satisfies SheetData);
     });
+  }
+
+  // ------------------------------------------------------------ inside the buildings
+  /** Walk through a door: fade out, swap the park for the room, fade in. */
+  private enterBuilding(door: Interactable) {
+    const id = door.building as InteriorId | undefined;
+    if (!id || !INTERIOR_IDS.includes(id) || this.indoor || this.mode !== 'walk' || this.transitioning) return;
+    this.transitioning = true;
+    this.game.events.emit('sfx', 'door');
+    this.game.events.emit('ui:context', null);
+    const cam = this.cameras.main;
+    cam.once('camerafadeoutcomplete', () => {
+      this.setupIndoor(buildInterior(id), { x: tileCenter(door.x), y: tileCenter(door.y) });
+      cam.fadeIn(180);
+      this.transitioning = false;
+      this.toast(this.indoor!.layout.title);
+    });
+    cam.fadeOut(160);
+  }
+
+  /** Step back outside (and, if asked, do something once outside, like driving the mower out). */
+  private leaveBuilding(then?: () => void) {
+    if (!this.indoor || this.transitioning) return;
+    this.transitioning = true;
+    this.game.events.emit('sfx', 'door');
+    this.game.events.emit('ui:context', null);
+    const cam = this.cameras.main;
+    cam.once('camerafadeoutcomplete', () => {
+      this.leaveBuildingNow();
+      cam.fadeIn(180);
+      this.transitioning = false;
+      then?.();
+    });
+    cam.fadeOut(160);
+  }
+
+  /** Put the park back, at once. */
+  private leaveBuildingNow() {
+    const room = this.indoor;
+    if (!room) return;
+    for (const t of room.things) t.destroy();
+    room.map.destroy();
+    this.indoor = null;
+    this.px = room.outside.x;
+    this.py = room.outside.y;
+    this.facing = 'down';
+    const L = this.layoutData;
+    const cam = this.cameras.main;
+    cam.setBounds(0, 0, L.width * TILE, L.height * TILE);
+    cam.setBackgroundColor('#1c2b1c');
+    cam.centerOn(this.px, this.py);
+    this.applyZoom();
+    this.rebuildInteractables();
+    this.applyWeather();
+    this.game.events.emit('ui:daylight', daylight(this.clock.minutes));
+    this.lastDaylight = -1;
+  }
+
+  /** Build the room far off the edge of the park and put the keeper just inside its door. */
+  private setupIndoor(layout: InteriorLayout, outside: { x: number; y: number }) {
+    const L = this.layoutData;
+    const ox = L.width + 40;
+    const oy = 4;
+    const things: Phaser.GameObjects.GameObject[] = [];
+    const map = this.make.tilemap({ data: layout.tiles, tileWidth: TILE, tileHeight: TILE });
+    const tileset = map.addTilesetImage('room_tiles', 'room_tiles', TILE, TILE, 0, 0)!;
+    map.createLayer(0, tileset, ox * TILE, oy * TILE)!.setDepth(0);
+    for (const o of layout.objects) {
+      const img = this.add.image(0, 0, o.tex);
+      if (o.wall) img.setOrigin(0, 0).setPosition((ox + o.x) * TILE, oy * TILE).setDepth(1);
+      else img.setOrigin(0.5, 1).setPosition((ox + o.x + o.w / 2) * TILE, (oy + o.y + 1) * TILE).setDepth((oy + o.y + 1) * TILE);
+      things.push(img);
+    }
+    if (layout.npc) {
+      const y = (oy + layout.npc.y + 1) * TILE;
+      things.push(this.add.image((ox + layout.npc.x + 0.5) * TILE, y, layout.npc.tex).setOrigin(0.5, 44 / 48).setDepth(y - 60));
+    }
+    this.indoor = {
+      layout, ox, oy, things, map, outside,
+      interactables: layout.interactables.map((i) => ({ ...i, x: i.x + ox, y: i.y + oy })),
+    };
+    this.px = (ox + layout.spawn.x) * TILE + TILE / 2;
+    this.py = (oy + layout.spawn.y) * TILE + TILE / 2;
+    this.facing = 'up';
+    const cam = this.cameras.main;
+    cam.setBounds(ox * TILE, oy * TILE, layout.width * TILE, layout.height * TILE);
+    cam.setBackgroundColor(ROOM_BG);
+    cam.centerOn(this.px, this.py);
+    this.applyZoom();
+    this.rebuildInteractables();
+    this.game.events.emit('ui:weather', { dim: 0, rain: false, fog: false, kind: 'clear' });
+    this.game.events.emit('ui:daylight', 1);
   }
 
   // ------------------------------------------------------------ the living zoo
@@ -1958,7 +2084,9 @@ export class GameScene extends Phaser.Scene {
       // The version of the zoo that is actually on screen (an old save keeps its original zoo).
       generatorVersion: this.layoutData.generatorVersion,
       // A boat cannot be saved at sea: if the keeper is afloat, the save puts them back on the dock.
-      player: this.mode === 'boat'
+      player: this.indoor
+        ? { x: Math.round(this.indoor.outside.x), y: Math.round(this.indoor.outside.y), facing: 'down' as Facing }
+        : this.mode === 'boat'
         ? { x: Math.round(tileCenter(this.layoutData.dock.x)), y: Math.round(tileCenter(this.layoutData.dock.y)), facing: 'down' as Facing }
         : { x: Math.round(this.px), y: Math.round(this.py), facing: this.facing },
       mown: [...this.mown],

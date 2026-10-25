@@ -149,6 +149,15 @@ The zoo now changes over time, gently.
 - **People:** Daniel and Dr. Shah have their own look. More random happenings. The inspect panel and the menu fit short landscape phones better.
 - `npm run verify` runs the type check, all tests and a production build in one go.
 
+## Walk-in buildings and a natural park
+
+- **Go inside.** The food preparation kitchen, the maintenance shed and the vet clinic are real rooms now, like the staff room. Walk up to a door (ENTER KITCHEN, ENTER SHED, ENTER CLINIC) and you step inside.
+  - *Kitchen:* the dry store (hay, bamboo), the fresh store (fruit, vegetables, meat, fish), the bucket rack, a sink and the prep counter. Everything you did at the stands outside you now do in here.
+  - *Shed:* the tool wall, the workbench and the mower on its charger. Taking the mower drives it out through the door.
+  - *Clinic:* reception with Dr. Shah, an exam table and the medicine cabinet. Report symptoms and collect medicine here.
+  The clock keeps running while you are inside, and the door out is always at the bottom of the room.
+- **A park that is not in a line.** New games build a bigger park (64 by 50 tiles) with a round plaza in the middle, habitats and buildings scattered at different spots and heights, a rounded pond, a garden, little woods, and winding paths that branch and join. Every seed gives a different park. **Games you already started keep their old park**, but their buildings can be entered too.
+
 ## Not built yet
 
 More animals (otters), Chapters 3 to 6, final art, large text, offline play. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).

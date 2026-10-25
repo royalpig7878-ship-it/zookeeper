@@ -1,9 +1,10 @@
-import { GENERATOR_VERSION } from '../config/constants';
 import { Rng } from '../core/rng';
 import { ELEPHANT_HABITAT, EXTRA_HABITATS, HabitatDef } from '../data/habitats';
 import { NOTES } from '../data/notes';
 import { HabitatInfo, HabitatStations, Interactable, ObjectKind, PlacedObject, Pt, Terrain, ZooLayout } from './types';
 
+/** This file is generator version 3, kept exactly as it was so saved games made with it keep their parks. */
+const V3 = 3;
 export const MAP_W = 52;
 export const MAP_H = 40;
 
@@ -11,7 +12,7 @@ export const MAP_H = 40;
 export class GenerationError extends Error {}
 
 /** A small helper that keeps the map grids together and enforces "reserved" tiles. */
-class Grid {
+export class Grid {
   terrain: number[][];
   blocked: boolean[][];
   reserved: boolean[][];
@@ -66,7 +67,7 @@ class Grid {
   }
 }
 
-function shuffle<T>(items: readonly T[], rng: Rng): T[] {
+export function shuffle<T>(items: readonly T[], rng: Rng): T[] {
   const a = [...items];
   for (let i = a.length - 1; i > 0; i--) {
     const j = rng.int(0, i);
@@ -75,13 +76,13 @@ function shuffle<T>(items: readonly T[], rng: Rng): T[] {
   return a;
 }
 
-const BUILDINGS = {
+export const BUILDINGS = {
   staff: { kind: 'building_staff', w: 6, h: 4 },
   vet: { kind: 'building_vet', w: 5, h: 4 },
   food: { kind: 'building_food', w: 5, h: 4 },
   shed: { kind: 'building_shed', w: 4, h: 3 },
 } as const;
-type BuildingId = keyof typeof BUILDINGS;
+export type BuildingId = keyof typeof BUILDINGS;
 
 /** Free space the food building needs to its right for the hay, fruit and prep counter. */
 const FOOD_PROPS_WIDTH = 3;
@@ -98,7 +99,7 @@ const FOOD_PROPS_WIDTH = 3;
 export function generateZoo(seed: string, attempt: number): ZooLayout {
   const W = MAP_W;
   const H = MAP_H;
-  const rng = new Rng(`${seed}|gen${GENERATOR_VERSION}|${attempt}`);
+  const rng = new Rng(`${seed}|gen${V3}|${attempt}`);
   const g = new Grid(W, H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) g.terrain[y][x] = rng.int(0, 3);
 
@@ -368,7 +369,7 @@ export function generateZoo(seed: string, attempt: number): ZooLayout {
 
   return {
     seed,
-    generatorVersion: GENERATOR_VERSION,
+    generatorVersion: V3,
     width: W,
     height: H,
     terrain: g.terrain,
@@ -415,7 +416,7 @@ function packRow(ids: BuildingId[], x0: number, x1: number, rng: Rng): { id: Bui
  * Build one habitat: fence, gate, floor, path to the promenade, a sign, feeding and water hatches
  * with troughs, and the places this species likes (shade, dust patch, pool, hiding place, rock).
  */
-function buildHabitat(g: Grid, def: HabitatDef, id: string, x: number, hb: number, promY: number): HabitatInfo {
+export function buildHabitat(g: Grid, def: HabitatDef, id: string, x: number, hb: number, promY: number): HabitatInfo {
   const { w, h } = def;
   const hy = hb - h + 1;
   if (hy < 3) throw new GenerationError('habitat too tall');
@@ -513,7 +514,7 @@ function buildHabitat(g: Grid, def: HabitatDef, id: string, x: number, hb: numbe
   };
 }
 
-function habitatInteractables(h: HabitatInfo, def: HabitatDef, hb: number): Interactable[] {
+export function habitatInteractables(h: HabitatInfo, def: HabitatDef, hb: number): Interactable[] {
   const gx = h.gate.x;
   const feedX = h.stations!.eat.x;
   const waterX = h.stations!.drink.x;
@@ -534,7 +535,7 @@ function habitatInteractables(h: HabitatInfo, def: HabitatDef, hb: number): Inte
 }
 
 /** Choose the right fence picture for each fence piece from its neighbours. */
-function applyFenceVariants(g: Grid) {
+export function applyFenceVariants(g: Grid) {
   const set = new Set<number>();
   for (const o of g.objects) {
     if (o.kind === 'fence' || o.kind === 'gate' || o.kind === 'hatch_food' || o.kind === 'hatch_water') {

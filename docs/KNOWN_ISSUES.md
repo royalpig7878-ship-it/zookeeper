@@ -1,5 +1,15 @@
 # Known Issues
 
+## Walk-in buildings and natural park gaps
+- Habitats all face south (their hatches and gates are on the south fence), so the park is scattered but not rotated. Adding other orientations would need the hatch and gate logic to change.
+- The three rooms are fixed designs with fixed furniture, the same in every zoo.
+- Paths that merge near the plaza can make wide grey patches. The plaza is a plain stone ellipse with benches and hedges, with no fountain or statue.
+- About one seed in ten needs a second attempt to build (checked, not noticeable in play).
+- Old saved games keep their old straight-line park by design. Only new games get the new layout.
+- The park is bigger (64 by 50), so walking is longer. There is no map yet.
+- Entering a building does not pause the animals, the clock or the weather: it is just another part of the park.
+- The clinic is where you report symptoms, but Dr. Shah still comes to the habitat gate for examinations, as before.
+
 ## Milestone 11 gaps
 - **The sound has never been heard by a person.** It is made in the browser with Web Audio (no files). I checked that it starts after a touch, plays the effects, limits how many play at once, ramps the rain and schedules the music without errors, and measured the output level (peaks about 0.35 for the task chime, 0.15 for a click and 0.19 for the music, where 1.0 is full scale) after the first version proved far too quiet to hear. I cannot judge how it sounds. Settings has a Test sound button. Volumes and the music are likely to need adjusting by ear. There is no footstep variety per ground type, no mower or boat engine sound, and no music change for story moments.
 - **Art is still first-pass, drawn in code.** Newborns are the adult picture shrunk, the lying-down poses are rough and water does not animate. Real final art would need an artist or licensed assets (record them in the asset catalog).
@@ -17,7 +27,7 @@
 - Playing offline after install (no service worker yet).
 
 ## Incomplete / placeholder
-- Doors, dock, shed and gate only show placeholder dialogue. The vet clinic is a menu, not an interior.
+- Doors, dock and gates only show short dialogue. The kitchen, shed and clinic have rooms you can enter.
 - Only one animal (Buster, elephant). Other species come in Milestone 7.
 - Needs run on a simple clock (1 real second = 1 in-game minute, so a shift is about 10 real minutes). No offline catch-up yet (Milestone 10), so the zoo is frozen while the game is closed.
 - Day 2 and later repeat the same kind of tasks; there is no variety, rewards or unlocks yet.

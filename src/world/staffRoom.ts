@@ -2,6 +2,8 @@ import type { Interactable } from './layout';
 
 export const ROOM_W = 22;
 export const ROOM_H = 12;
+/** the colour behind a room's walls */
+export const ROOM_BG = '#1c1a14';
 /** Rows 0-2 are the back wall. */
 export const WALL_ROWS = 3;
 

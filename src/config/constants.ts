@@ -1,6 +1,6 @@
 /** Shared game constants. Tweak numbers here rather than in scene code. */
 export const TILE = 32;
-export const GENERATOR_VERSION = 3;
+export const GENERATOR_VERSION = 4;
 export const DEFAULT_SEED = 'willow-creek';
 
 export const PLAYER = {

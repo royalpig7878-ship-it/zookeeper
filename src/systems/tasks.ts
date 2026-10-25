@@ -68,11 +68,11 @@ const task = (id: string, title: string, priority: Priority, event: TaskEvent, n
 export function createTasks(c: TaskContext): TaskState[] {
   const t: TaskState[] = [];
   if (!c.lockerOpened) t.push(task('locker', 'Collect your notebook and first-aid kit (staff room locker)', 'routine', 'equipment-collected'));
-  if (!c.toolsOwned) t.push(task('tools', 'Collect shovel, broom and hose (maintenance shed)', 'routine', 'tools-collected'));
+  if (!c.toolsOwned) t.push(task('tools', 'Collect shovel, broom and hose (inside the maintenance shed)', 'routine', 'tools-collected'));
   const g = c.grounds;
   if (g && !g.kitOwned) t.push(task('kit', 'Collect the grounds kit (maintenance shed)', 'routine', 'kit-collected'));
   t.push(task('water', "Refill Buster's water trough (hose, water hatch)", 'high', 'water-filled'));
-  t.push(task('meal', 'Prepare a meal for Buster (food prep area)', 'high', 'meal-prepared'));
+  t.push(task('meal', 'Prepare a meal for Buster (inside the food preparation building)', 'high', 'meal-prepared'));
   t.push(task('feed', "Fill Buster's feeder (feeding hatch)", 'high', 'feeder-filled'));
   for (const h of c.habitats ?? []) {
     t.push(task(`water-${h.id}`, `Refill the ${h.group}' water trough (hose, water hatch)`, 'routine', `watered:${h.id}`));

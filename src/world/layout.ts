@@ -1,5 +1,6 @@
 import { GENERATOR_VERSION } from '../config/constants';
 import { GenerationError, generateZoo } from './generator';
+import { generateZoo4 } from './generatorV4';
 import { buildLegacyZoo } from './legacy';
 import { ZooLayout } from './types';
 import { validateZoo } from './validate';
@@ -33,7 +34,7 @@ export function buildZoo(seed: string, opts: BuildOptions = {}): ZooLayout {
   const attempts = opts.attempts ?? MAX_ATTEMPTS;
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      const layout = generateZoo(seed, attempt);
+      const layout = version >= 4 ? generateZoo4(seed, attempt) : generateZoo(seed, attempt);
       if (validate(layout).length === 0) return layout;
     } catch (e) {
       if (!(e instanceof GenerationError)) throw e; // a real bug should not be hidden

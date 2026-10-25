@@ -35,6 +35,12 @@ Pure modules in `src/systems/` (all unit-tested without Phaser):
 
 World freezes (`registry.paused`) behind the pause menu and any sheet. Dialogues and the inspect panel do not freeze it.
 
+## Walk-in buildings and generator version 4
+- `world/interiors.ts` defines the three rooms as data (floor and wall tiles from the staff room's tileset, furniture with texture keys, interactables in room coordinates) and `withEnterableBuildings`, which turns any layout, old or new, into one whose three doors have the action `building` and whose old outdoor stands are removed.
+- `GameScene` keeps an optional `indoor` state: the room is drawn at a far offset from the park (`setupIndoor`), collision and the list of interactables switch to the room (`isBlocked`, `rebuildInteractables`), the camera is bounded to the room, and `leaveBuilding` puts the keeper back at the door. Because it is the same scene, timed jobs, the bag, tasks and saving are shared. A save made indoors stores the position outside the door.
+- `world/generator.ts` is generator version 3 exactly as it was (its version number is now fixed in the file, and tests keep fingerprints of four parks). `world/generatorV4.ts` is version 4: place the plaza, then habitats, pond, garden and buildings at random spots that fit (rejection sampling with a margin), then route paths with a Dijkstra search whose grass cost follows smooth value noise, so routes bend, and existing paths are cheap, so branches join. `layout.ts` picks the generator from the saved version. `validate.ts` takes the required list from the version.
+- Order matters for fit: the big things (habitats, pond, garden) are placed before the small ones (buildings), paths last, props and scenery after.
+
 ## Polish (Milestone 11)
 - `core/settings.ts` is pure: the `Settings` shape, `sanitizeSettings`, `applySettingAction` (what each settings button does) and a small store that saves on every change and tells listeners. `core/settingsInstance.ts` is the one shared copy. `systems/sheets.ts` builds the settings sheet, and the sheet component now wraps a long row of buttons onto more lines.
 - `audio/plan.ts` is pure (the music scale, which background sounds fit the weather and hour, a limit on simultaneous sounds); `audio/engine.ts` makes the sound with Web Audio and listens to game events (`sfx`, `ui:weather`, `ui:daylight`, `ui:toast`). Scenes only emit `this.game.events.emit('sfx', name)`.
@@ -111,6 +117,7 @@ Tile grid. The player is a small square around their feet; each axis is moved se
 Version 8 adds, per animal, `sex`, `birthDay`, `motherId` and `fatherId`, and at the top level `life` (`{ pregnancies, births, lastBirthDay, nextPregnancyId, lastScenarioDay }`). Older saves load: animals without a sex get the one the roster would give them, and there are no life records. Version 7 notes follow.
 
 ### Version 7 base
+Note: the park layout is not saved. Version 4 parks are rebuilt from the seed and `generatorVersion`, like older ones.
 Version 7 adds `medical` (`{ cases, nextId, lastOnsetDay }`; each case has its condition, stage, visit, doses, progress and a written log). Older saves load with no medical records. Version 6 notes follow.
 
 ### Version 6 base

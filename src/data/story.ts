@@ -29,7 +29,7 @@ export const CHAPTERS: ChapterDef[] = [
       { id: 'meet', objective: 'Meet Daniel Brooks by the staff building', hint: 'Come and find me by the staff building and I will show you around.', key: 'met-daniel' },
       { id: 'locker', objective: 'Collect your notebook from your locker (staff room)', hint: 'Go into the staff building. There is a locker with your name on it.', key: 'locker-opened' },
       { id: 'tools', objective: 'Take the shovel, broom and hose from the maintenance shed', hint: "Leo keeps the tools in the maintenance shed. Take the basic set.", key: 'tools-collected' },
-      { id: 'meal', objective: "Prepare Buster's meal at the prep counter", hint: 'Buster eats hay with a little fruit. Get the bucket at the food preparation door, gather from the stores, then use the prep counter.', key: 'first-meal' },
+      { id: 'meal', objective: "Prepare Buster's meal at the prep counter", hint: 'Buster eats hay with a little fruit. Go into the food preparation building: get the bucket, gather from the stores, then use the prep counter.', key: 'first-meal' },
       { id: 'fed', objective: "Fill Buster's feeder at the feeding hatch", hint: 'Take the meal to the feeding hatch on the elephant fence.', key: 'first-fed' },
       { id: 'water', objective: "Refill Buster's water trough (hose, water hatch)", hint: 'You need the hose for the water hatch, next to the feeding hatch.', key: 'first-water' },
       { id: 'clean', objective: "Clear waste from Buster's habitat (shovel, hatch)", hint: 'Elephants make a lot of mess. Use the shovel on the waste through the hatch.', key: 'first-clean' },

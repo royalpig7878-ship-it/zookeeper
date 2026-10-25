@@ -36,7 +36,7 @@ export interface PlacedObject {
 }
 
 export type InteractAction =
-  | 'feed' | 'water' | 'enrich' | 'tools' | 'boat' | 'bucket' | 'hay' | 'fruit' | 'prep' | 'enter' | 'pile' | 'clinic' | 'vetvisit' | 'talk'
+  | 'feed' | 'water' | 'enrich' | 'tools' | 'boat' | 'bucket' | 'hay' | 'fruit' | 'prep' | 'enter' | 'pile' | 'clinic' | 'vetvisit' | 'talk' | 'building'
   // staff room
   | 'exit' | 'desk' | 'noticeboard' | 'locker' | 'calendar' | 'photos' | 'notes' | 'sit';
 
@@ -56,6 +56,8 @@ export interface Interactable {
   range?: number;
   /** the habitat this belongs to (feeding hatches, gates). Missing means the elephant habitat. */
   habitat?: string;
+  /** for a building door: which building it leads into ('prep', 'shed' or 'vet') */
+  building?: string;
 }
 
 export interface Pt {

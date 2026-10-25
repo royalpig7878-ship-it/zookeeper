@@ -762,6 +762,157 @@ function makeWorkdayProps(scene: Phaser.Scene) {
 }
 
 // ---------------------------------------------------------------- staff room
+// ---------------------------------------------------------------- building interiors
+/** Furniture and equipment for the walk-in buildings: the prep kitchen, the maintenance shed and the vet clinic. */
+function makeInteriorArt(scene: Phaser.Scene) {
+  const mk = (key: string, w: number, h: number, draw: (c: Ctx) => void) => {
+    const [cv, c] = makeCanvas(w, h);
+    draw(c);
+    addCanvas(scene, key, cv);
+  };
+  const shadow = (c: Ctx, w: number, y: number) => rect(c, 'rgba(0,0,0,0.16)', 4, y, w - 8, 5);
+
+  // ---- prep kitchen
+  mk('room_hay_store', 96, 64, (c) => {
+    shadow(c, 96, 58);
+    outlined(c, '#c8a85a', 4, 24, 40, 32); // a big hay bale
+    for (const y of [32, 40, 48]) rect(c, '#9a7a3a', 5, y, 38, 1);
+    for (const x of [14, 30]) rect(c, '#7a5a2a', x, 24, 2, 32);
+    for (let i = 0; i < 9; i++) rect(c, '#e0c878', 7 + i * 4, 27 + (i % 3) * 8, 2, 4);
+    outlined(c, '#c8a85a', 46, 34, 30, 22); // a smaller bale
+    rect(c, '#9a7a3a', 47, 44, 28, 1);
+    outlined(c, '#d8c8a0', 72, 20, 20, 36); // a grain sack
+    rect(c, '#a89870', 74, 26, 16, 2);
+    rect(c, '#5a8a4a', 78, 36, 8, 8);
+    rect(c, '#2a1f2d', 80, 38, 4, 1);
+  });
+  mk('room_cold_store', 96, 64, (c) => {
+    shadow(c, 96, 58);
+    outlined(c, '#dfe8ec', 6, 6, 40, 52); // a fridge
+    rect(c, '#b8c8d0', 7, 30, 38, 2);
+    rect(c, '#8a9aa4', 40, 14, 3, 12);
+    rect(c, '#8a9aa4', 40, 38, 3, 12);
+    rect(c, '#bfe0f0', 10, 10, 18, 4);
+    outlined(c, '#c98a4a', 50, 32, 40, 24); // crates of fruit and vegetables
+    rect(c, '#e24a3a', 54, 26, 8, 8);
+    rect(c, '#f0a030', 66, 25, 8, 9);
+    rect(c, '#6ab24a', 78, 27, 9, 7);
+    rect(c, '#a8774a', 50, 42, 40, 2);
+    rect(c, '#2a6a8a', 58, 14, 24, 10); // a fish crate on top
+    rect(c, '#9ad0e8', 60, 16, 20, 6);
+  });
+  mk('room_prep_table', 96, 48, (c) => {
+    shadow(c, 96, 42);
+    outlined(c, '#c8d0d4', 2, 12, 92, 12); // a steel top
+    rect(c, '#e8eef0', 4, 14, 88, 2);
+    outlined(c, '#8a9aa4', 6, 24, 6, 18);
+    outlined(c, '#8a9aa4', 84, 24, 6, 18);
+    outlined(c, '#d8a868', 20, 6, 22, 8); // a chopping board
+    rect(c, '#f0f0f0', 46, 5, 14, 8); // a bowl
+    rect(c, '#e24a3a', 49, 4, 4, 3);
+    rect(c, '#9aa4a8', 66, 8, 10, 3); // a knife
+    rect(c, '#5a3a22', 74, 7, 5, 5);
+  });
+  mk('room_bucket_rack', 32, 48, (c) => {
+    shadow(c, 32, 42);
+    outlined(c, '#a8774a', 3, 4, 26, 6);
+    outlined(c, '#a8774a', 3, 22, 26, 5);
+    rect(c, '#7d5232', 5, 4, 3, 38);
+    rect(c, '#7d5232', 24, 4, 3, 38);
+    outlined(c, '#5a8fc0', 9, 10, 14, 12);
+    rect(c, '#8ab8e0', 10, 11, 12, 2);
+    rect(c, '#2a1f2d', 11, 6, 10, 1);
+  });
+  mk('room_sink', 32, 48, (c) => {
+    shadow(c, 32, 42);
+    outlined(c, '#e8eef0', 3, 18, 26, 22);
+    rect(c, '#8ad0f0', 7, 22, 18, 8);
+    rect(c, '#8a9aa4', 14, 8, 4, 12);
+    rect(c, '#8a9aa4', 14, 6, 8, 3);
+  });
+  mk('room_crates', 64, 40, (c) => {
+    shadow(c, 64, 35);
+    outlined(c, '#a8774a', 3, 14, 26, 20);
+    outlined(c, '#c99764', 33, 18, 26, 16);
+    outlined(c, '#c99764', 12, 3, 24, 14);
+    for (const [x, y] of [[3, 22], [33, 24], [12, 9]]) rect(c, '#7d5232', x + 1, y, 24, 2);
+  });
+
+  // ---- maintenance shed
+  mk('room_tool_rack', 128, 64, (c) => {
+    rect(c, '#8a6a4a', 0, 0, 128, 64); // a pegboard wall panel
+    for (let x = 4; x < 124; x += 8) for (let y = 4; y < 60; y += 8) rect(c, '#6a4a32', x, y, 2, 2);
+    rect(c, '#9a7a56', 0, 0, 128, 3);
+    rect(c, '#9aa0a8', 12, 8, 4, 38); outlined(c, '#8a9aa4', 6, 40, 16, 12); // a shovel
+    rect(c, '#c8a060', 36, 8, 4, 44); rect(c, '#e0c878', 30, 44, 16, 8); // a broom
+    outlined(c, '#3a8f4a', 58, 14, 22, 22); rect(c, '#2a6a3a', 64, 20, 10, 10); rect(c, '#e8a030', 78, 26, 8, 4); // a hose reel
+    rect(c, '#a8774a', 96, 10, 4, 40); outlined(c, '#9aa0a8', 92, 8, 14, 8); // a rake
+    outlined(c, '#e8a030', 108, 20, 14, 18); rect(c, '#2a1f2d', 112, 24, 6, 2); // a hedge trimmer
+  });
+  mk('room_workbench', 96, 56, (c) => {
+    shadow(c, 96, 50);
+    outlined(c, '#a8774a', 2, 14, 92, 12);
+    rect(c, '#c99764', 4, 16, 88, 2);
+    outlined(c, '#7d5232', 6, 26, 8, 22);
+    outlined(c, '#7d5232', 82, 26, 8, 22);
+    outlined(c, '#d8553f', 14, 3, 26, 12); // a toolbox
+    rect(c, '#f4ecd0', 24, 6, 6, 3);
+    outlined(c, '#9aa0a8', 52, 8, 16, 6); // a vice
+    rect(c, '#e8a030', 74, 9, 10, 5);
+  });
+  mk('room_mower_pad', 96, 64, (c) => {
+    shadow(c, 96, 58);
+    outlined(c, '#4a5058', 4, 50, 88, 8); // the charging pad
+    rect(c, '#f0c850', 10, 53, 10, 2);
+    outlined(c, '#e8a030', 14, 22, 56, 24); // the mower body
+    rect(c, '#f4c860', 18, 25, 48, 4);
+    outlined(c, '#3a3f4a', 62, 14, 8, 14); // the handle
+    outlined(c, '#3a3f4a', 12, 40, 14, 12); // wheels
+    outlined(c, '#3a3f4a', 52, 40, 14, 12);
+    rect(c, '#3a8f4a', 36, 12, 8, 10); rect(c, '#9ad07a', 38, 14, 4, 3); // a green charge light
+    rect(c, '#2a1f2d', 80, 38, 2, 14); // the cable
+  });
+
+  // ---- vet clinic
+  mk('room_reception', 96, 48, (c) => {
+    shadow(c, 96, 42);
+    outlined(c, '#e8dcc0', 2, 14, 92, 26);
+    rect(c, '#cbbd9c', 4, 28, 88, 2);
+    outlined(c, '#8a9aa4', 28, 4, 22, 14); // a computer
+    rect(c, '#9ad0e8', 30, 6, 18, 9);
+    rect(c, '#e24a4a', 70, 6, 3, 9); rect(c, '#e24a4a', 67, 9, 9, 3); // a red cross sign
+    rect(c, '#f4f4ee', 8, 8, 12, 8); // some papers
+    rect(c, '#2a1f2d', 10, 10, 8, 1); rect(c, '#2a1f2d', 10, 13, 6, 1);
+  });
+  mk('room_exam_table', 64, 56, (c) => {
+    shadow(c, 64, 50);
+    outlined(c, '#cfd8dc', 4, 14, 56, 14);
+    rect(c, '#e8eef0', 6, 16, 52, 2);
+    outlined(c, '#8a9aa4', 10, 28, 8, 20);
+    outlined(c, '#8a9aa4', 46, 28, 8, 20);
+    rect(c, '#8a9aa4', 10, 44, 44, 3);
+    rect(c, '#9ad0e8', 8, 12, 14, 4); // a folded blanket
+  });
+  mk('room_med_cabinet', 64, 64, (c) => {
+    outlined(c, '#e8eef0', 4, 6, 56, 52);
+    rect(c, '#b8c8d0', 31, 8, 2, 48);
+    outlined(c, '#9ad0e8', 8, 12, 20, 18);
+    outlined(c, '#9ad0e8', 36, 12, 20, 18);
+    const bottles: [number, number, string][] = [[11, 33, '#e24a3a'], [19, 33, '#f0c850'], [39, 33, '#5a8fc0'], [47, 33, '#6ab24a']];
+    for (const [x, y, col] of bottles) {
+      rect(c, '#2a1f2d', x - 1, y - 1, 8, 14);
+      rect(c, col, x, y, 6, 12);
+    }
+    rect(c, '#e24a4a', 28, 46, 8, 3); rect(c, '#e24a4a', 30, 44, 4, 7);
+  });
+  mk('room_poster', 32, 40, (c) => {
+    outlined(c, '#f4ecd0', 4, 4, 24, 30);
+    rect(c, '#9fd4ee', 7, 7, 18, 12);
+    rect(c, '#8a8a8a', 10, 11, 12, 6); // a tiny elephant
+    rect(c, '#2a1f2d', 8, 22, 16, 1); rect(c, '#2a1f2d', 8, 26, 12, 1);
+  });
+}
+
 function makeStaffRoomArt(scene: Phaser.Scene) {
   // tileset: floor, wall, wall base, rug, mat
   {
@@ -1441,6 +1592,7 @@ export function generateAllTextures(scene: Phaser.Scene) {
   makeBubbles(scene);
   makeWorkdayProps(scene);
   makeStaffRoomArt(scene);
+  makeInteriorArt(scene);
   makeGroundsArt(scene);
   makeSpeciesArt(scene);
   makeVehicles(scene);

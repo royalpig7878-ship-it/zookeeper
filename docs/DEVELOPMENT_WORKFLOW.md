@@ -187,6 +187,19 @@ Honest notes: pregnancy and birth were forced in the browser by calling the dail
 
 Honest notes: nobody has listened to the sound or held the game on a phone, so those two are the first things to check. Final art is not done; it needs an artist or licensed assets.
 
+## Extra milestone: walk-in buildings and a natural park
+
+Asked for after Milestone 11: the food preparation, shed and clinic work should happen inside buildings, and the generated park should not look like a line.
+
+- [x] Interiors (`world/interiors.ts`): a prep kitchen (dry and fresh stores, bucket rack, sink, prep counter), a shed (tool wall, workbench, mower on its charger) and a clinic (reception with Dr. Shah, exam table, medicine cabinet). New art for 17 pieces of furniture
+- [x] The rooms are built far off the edge of the park map inside the same game scene, so jobs, the bag, tasks, the clock and saving all work inside. The save puts you back outside the door. The mower is driven out through the shed door. The weather and daylight overlays stop indoors
+- [x] Every zoo, including old ones (generator versions 1 to 3), gets walk-in buildings: the outdoor stores and counter are removed from the playing copy and the three doors lead inside. What a seed generates for old versions is unchanged (checked with fixed fingerprints)
+- [x] Generator version 4 (`world/generatorV4.ts`): 64 by 50 tiles, a round plaza, habitats and buildings at random spots that fit (not in rows), a rounded pond and a garden, little woods, and paths routed with a cost search over smooth noise so they wind and branch and join each other. New games use it; saved games keep their own version
+- [x] Validation checks every park (reachability of everything, sealed habitats, the boat, jobs). About nine in ten seeds pass the first attempt; the rest retry with a new attempt, and the old fallback park is still there if all attempts fail
+- [x] 262 automated tests (12 new: parks are valid, repeatable and different; habitats at different heights; buildings scattered; paths without long straight runs; old parks unchanged; old zoos get walk-in buildings; every room is reachable and has what its job needs). Browser: the kitchen flow (bucket, gather, cook), the shed (tools, mower out the door) and the clinic, an old version 3 save entering the kitchen, and four new parks drawn from above
+
+Honest notes: the new park is judged by eye on a few seeds and by tests, not played through on a phone. Habitats still face south (their hatches are on the south fence), so some orientation sameness remains. The rooms are fixed designs, not generated. The plaza and the places where paths merge can look like wide grey patches.
+
 ## Next steps
 
 All eleven milestones are built. The most useful next work is playing it on a real phone and noting what feels wrong, then tuning (see KNOWN_ISSUES), writing Chapters 3 to 6, and final art. Earlier note for reference: Milestone 11 was polish (final art, animations, sound, settings, performance, accessibility, save recovery, mobile testing, production build). Earlier note for reference: Milestone 10 was the living zoo. Between-shift simulation, relationships, baby animals, growth, breeding rules, weather and random scenarios. Earlier note for reference: Milestone 9 was story chapters. Earlier note for reference: seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)

@@ -7,8 +7,10 @@ import { Terrain, ZooLayout } from './types';
 /** Things every zoo must contain so the story and the workday are always possible. */
 export const REQUIRED_INTERACTABLES = [
   'welcome-sign', 'pond-sign', 'habitat-sign', 'habitat-gate', 'feed-hatch', 'water-hatch', 'staff-door', 'food-door',
-  'hay-stack', 'fruit-crate', 'prep-counter', 'vet-door', 'shed-door', 'dock', 'bench-1', 'note-margaret', 'photo-old',
+  'vet-door', 'shed-door', 'dock', 'bench-1', 'note-margaret', 'photo-old',
 ];
+/** Zoos made before the buildings could be entered also had these standing outside the food building. */
+const OLD_OUTDOOR_STORES = ['hay-stack', 'fruit-crate', 'prep-counter'];
 
 const isBuilding = (kind: string) => kind.startsWith('building_');
 
@@ -30,7 +32,8 @@ export function validateZoo(L: ZooLayout): string[] {
   const reach = reachableTiles(W, H, L.blocked, L.spawn.x, L.spawn.y);
 
   // Required things exist, and the player can reach each one.
-  for (const id of REQUIRED_INTERACTABLES) if (!L.interactables.some((i) => i.id === id)) problems.push(`missing ${id}`);
+  const required = L.generatorVersion >= 4 ? REQUIRED_INTERACTABLES : [...REQUIRED_INTERACTABLES, ...OLD_OUTDOOR_STORES];
+  for (const id of required) if (!L.interactables.some((i) => i.id === id)) problems.push(`missing ${id}`);
   const nearReach = (px: number, py: number, range: number) => {
     for (const k of reach) {
       const x = k % W;

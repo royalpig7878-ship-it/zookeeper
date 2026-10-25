@@ -82,7 +82,7 @@ export function recipesSheet(speciesIds: readonly string[], inv: readonly Slot[]
     const need = Object.entries(r.inputs).map(([id, n]) => `${n} ${ITEMS[id].name.toLowerCase()} (you have ${countItem(inv, id)})`).join(' + ');
     lines.push(`${ITEMS[r.output].name}: ${need}`);
   }
-  lines.push('', hasItem(inv, 'bucket') ? 'You have the feeding bucket.' : 'You need the feeding bucket (food preparation door) to prepare meals.');
+  lines.push('', hasItem(inv, 'bucket') ? 'You have the feeding bucket.' : 'You need the feeding bucket (on the rack in the food preparation building) to prepare meals.');
   return {
     title: 'Prep Counter',
     subtitle: 'Choose a meal to prepare. Each species eats something different.',
