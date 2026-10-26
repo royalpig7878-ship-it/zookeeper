@@ -9,7 +9,12 @@ export interface KeeperState {
   facing: 'down' | 'up' | 'left' | 'right';
   /** the pose of the job being done, if one is running */
   action: PlayerAction | null;
+  /** running: the walking clip plays faster */
+  sprinting?: boolean;
 }
+
+/** How much faster the legs go when sprinting. */
+export const SPRINT_ANIM_SPEED = 1.6;
 
 /** The side picture is drawn facing right; left is the same picture flipped. */
 export function dirOf(facing: KeeperState['facing']): { dir: PlayerDir; flip: boolean } {
@@ -42,6 +47,7 @@ export class KeeperAnim {
     const { dir, flip } = dirOf(state.facing);
     this.lastFlip = flip;
     this.anim.play(playerClipName({ moving: state.moving && !state.action, carrying: state.carrying && !state.action, dir, action: state.action }));
+    this.anim.speed = state.sprinting && state.moving && !state.action ? SPRINT_ANIM_SPEED : 1;
     this.anim.update(dt);
     return { frame: this.anim.frame, flip };
   }

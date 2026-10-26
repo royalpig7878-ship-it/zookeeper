@@ -107,6 +107,9 @@ export class GameScene extends Phaser.Scene {
   private nearbyAnimal: AnimalView | undefined;
   private contextLabel: string | null = null;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private shiftKey!: Phaser.Input.Keyboard.Key;
+  /** on foot and holding Shift or the RUN button */
+  private sprinting = false;
   private wasd!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
   private sinceSave = 0;
   private seed = '';
@@ -273,6 +276,7 @@ export class GameScene extends Phaser.Scene {
 
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as GameScene['wasd'];
+    this.shiftKey = this.input.keyboard!.addKey('SHIFT');
 
     this.scene.launch('UI');
     const ev = this.game.events;
@@ -651,7 +655,8 @@ export class GameScene extends Phaser.Scene {
     const moving = mx !== 0 || my !== 0;
     if (moving) {
       // What you are riding decides how fast you go, how wide you are, and where you may go.
-      const speed = this.mode === 'mower' ? MOWER.speed : this.mode === 'boat' ? BOAT.speed : PLAYER.speed;
+      this.sprinting = this.mode === 'walk' && !modal && (this.shiftKey.isDown || this.registry.get('sprint') === true);
+      const speed = this.mode === 'mower' ? MOWER.speed : this.mode === 'boat' ? BOAT.speed : PLAYER.speed * (this.sprinting ? PLAYER.sprintMultiplier : 1);
       const radius = this.mode === 'mower' ? MOWER.radius : this.mode === 'boat' ? BOAT.radius : PLAYER.radius;
       const blocked = this.mode === 'boat'
         ? (tx: number, ty: number) => !this.isWater(tx, ty)
@@ -663,12 +668,13 @@ export class GameScene extends Phaser.Scene {
       else this.facing = my < 0 ? 'up' : 'down';
       this.walkTime += dt;
       this.stepClock += dt;
-      if (this.stepClock > 0.34 && this.mode === 'walk') {
+      if (this.stepClock > (this.sprinting ? 0.22 : 0.34) && this.mode === 'walk') {
         this.stepClock = 0;
         this.game.events.emit('sfx', 'step');
       }
     } else {
       this.walkTime = 0;
+      this.sprinting = false;
     }
     this.updatePlayerSprite(moving, dt);
     this.fx.update(dt);
@@ -755,15 +761,15 @@ export class GameScene extends Phaser.Scene {
       this.player.setOrigin(0.5, s.centreY / s.h);
     } else {
       const carrying = this.inventory.some((s) => ITEMS[s.id]?.category === 'food');
-      const { frame, flip } = this.keeperAnim.update(dt, { moving, carrying, facing: this.facing, action: this.job?.pose ?? null });
+      const { frame, flip } = this.keeperAnim.update(dt, { moving, carrying, facing: this.facing, action: this.job?.pose ?? null, sprinting: this.sprinting });
       this.player.setTexture(frame);
       this.player.setOrigin(0.5, 44 / 48);
       this.player.setFlipX(flip);
       if (moving) {
         this.dustClock += dt;
-        if (this.dustClock > 0.28) {
+        if (this.dustClock > (this.sprinting ? 0.12 : 0.28)) {
           this.dustClock = 0;
-          this.fx.burst('dust', this.px, this.py - 1, 1, 0, 0, true);
+          this.fx.burst('dust', this.px, this.py - 1, this.sprinting ? 2 : 1, 0, 0, true);
         }
       }
       this.player.setPosition(this.px, this.py);

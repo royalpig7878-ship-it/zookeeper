@@ -15,7 +15,7 @@ const zoos = SEEDS.map((s) => buildZoo(s));
 describe('a park that does not look laid out in a line (generator version 4)', () => {
   it('is bigger, version 4, valid and never needs the fallback map', () => {
     for (const z of zoos) {
-      expect(z.generatorVersion).toBe(5);
+      expect(z.generatorVersion).toBe(6);
       expect(z.width).toBe(MAP_W5);
       expect(z.height).toBe(MAP_H5);
       expect(validateZoo(z), z.seed).toEqual([]);

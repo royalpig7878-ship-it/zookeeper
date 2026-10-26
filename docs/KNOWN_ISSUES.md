@@ -59,5 +59,7 @@ What is still open, grouped by what it needs. Items that were fixed have been re
 - Saves from before Milestone 8 start with no medical history; saves from before Milestone 7 get the other species' animals created fresh.
 - A save made while the park generator was being changed (generator versions 2 to 4 during development) can look different when loaded; progress (history, bond, tasks, inventory) is kept, and animals are always put back inside their pens.
 
+- A game saved before park version 6 keeps its own park, including a few signs that stand inside the walkway. Start a new game to get signs beside the path. (Parks from version 5 on already have a loop path around the whole zoo.)
+
 ## Bugs
-- None known.
+- The RUN button is shown in the staff room too, but sprinting only works outside (on foot, not on the mower or boat).

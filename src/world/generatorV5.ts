@@ -63,7 +63,15 @@ class Heap {
   }
 }
 
-export function generateZoo5(seed: string, attempt: number): ZooLayout {
+/**
+ * Version 6 is version 5 with one change: signs stand beside the walkway, never in it. Everything else (and the random
+ * numbers used) is the same, so the parks look the same; a saved version-5 game keeps its own signs.
+ */
+export function generateZoo6(seed: string, attempt: number): ZooLayout {
+  return generateZoo5(seed, attempt, 6);
+}
+
+export function generateZoo5(seed: string, attempt: number, version = VERSION): ZooLayout {
   const W = MAP_W5;
   const H = MAP_H5;
   const rng = new Rng(`${seed}|gen${VERSION}|${attempt}`);
@@ -483,6 +491,35 @@ export function generateZoo5(seed: string, attempt: number): ZooLayout {
   );
   for (const h of habitats) I.push(...habitatInteractables(h, defs.find((d) => d.id === h.id)!.def, habitatBottoms.get(h.id)!));
 
+  // ---- version 6: signs stand beside the walkway, not inside it
+  if (version >= 6) {
+    const wedged = (x: number, y: number) => (isPath(x - 1, y) && isPath(x + 1, y)) || (isPath(x, y - 1) && isPath(x, y + 1));
+    const touchesPath = (x: number, y: number) => isPath(x - 1, y) || isPath(x + 1, y) || isPath(x, y - 1) || isPath(x, y + 1);
+    const signs = I.filter((i) => i.id.includes('sign'));
+    for (const s of signs) {
+      if (!wedged(s.x, s.y)) continue;
+      const near: [number, number][] = [];
+      for (let dx = -4; dx <= 4; dx++) for (let dy = -4; dy <= 4; dy++) near.push([dx, dy]);
+      near.sort((u, v) => Math.abs(u[0]) + Math.abs(u[1]) - Math.abs(v[0]) - Math.abs(v[1]));
+      for (const [dx, dy] of near) {
+        const nx = s.x + dx;
+        const ny = s.y + dy;
+        if (!g.free(nx, ny) || wedged(nx, ny) || !touchesPath(nx, ny)) continue;
+        const old = g.objects.findIndex((o) => o.kind === 'sign' && o.x === s.x && o.y === s.y);
+        if (old < 0) break;
+        g.objects.splice(old, 1);
+        g.blocked[s.y][s.x] = false;
+        g.fill(s.x, s.y, 1, 1, Terrain.Stone); // the tile the sign left becomes walkway again
+        g.prop('sign', nx, ny);
+        s.x = nx;
+        s.y = ny;
+        break;
+      }
+    }
+    const w = I.find((i) => i.id === 'welcome-sign');
+    if (w) welcome = { x: w.x, y: w.y };
+  }
+
   // ---- leaf and branch spots on the paths
   const leafCandidates = pathTiles.filter((p) => !g.blocked[p.y][p.x]);
   const leafSpots: Pt[] = [];
@@ -562,7 +599,7 @@ export function generateZoo5(seed: string, attempt: number): ZooLayout {
 
   return {
     seed,
-    generatorVersion: VERSION,
+    generatorVersion: version,
     width: W,
     height: H,
     terrain: g.terrain,

@@ -52,6 +52,8 @@ export class UIScene extends Phaser.Scene {
   private unsubSettings: (() => void) | null = null;
 
   private actionBtn!: Phaser.GameObjects.Container;
+  private runBtn!: Phaser.GameObjects.Container;
+  private runBg!: Phaser.GameObjects.Graphics;
   private actionLabel!: Phaser.GameObjects.Text;
   private actionBg!: Phaser.GameObjects.Graphics;
   private context: string | null = null;
@@ -106,6 +108,7 @@ export class UIScene extends Phaser.Scene {
   create() {
     this.input.addPointer(2);
     this.registry.set('move', { x: 0, y: 0 });
+    this.registry.set('sprint', false);
     this.registry.set('modal', false);
     this.registry.set('paused', false);
     this.inspectData = null;
@@ -123,6 +126,7 @@ export class UIScene extends Phaser.Scene {
     this.stickKnob = this.add.image(0, 0, 'ui_stick_knob').setAlpha(0.7).setDepth(2);
 
     this.buildActionButton();
+    this.buildRunButton();
     this.buildMenuButton();
     this.buildDialog();
     this.buildPause();
@@ -213,6 +217,9 @@ export class UIScene extends Phaser.Scene {
     // The action button goes on the side away from the joystick, and both stay out of the notch and corners.
     this.actionBtn.setScale(big ? 1.25 : 1);
     this.actionBtn.setPosition(lefty ? m + sf.left + 90 * (big ? 1.25 : 1) : width - m - sf.right - 90 * (big ? 1.25 : 1), height - m - sf.bottom - 50 * (big ? 1.25 : 1));
+    const bigK = big ? 1.25 : 1;
+    this.runBtn.setScale(bigK);
+    this.runBtn.setPosition(this.actionBtn.x, this.actionBtn.y - (50 + 12 + 42) * bigK);
     this.menuBtn.setPosition(width - m - sf.right - 28, m + sf.top + 28);
     this.tasksBtn.setPosition(width - m - sf.right - 28 - 64, m + sf.top + 28);
     this.bagBtn.setPosition(width - m - sf.right - 28 - 128, m + sf.top + 28);
@@ -284,6 +291,37 @@ export class UIScene extends Phaser.Scene {
       this.triggerAction();
     });
     this.actionBtn.setVisible(false);
+  }
+
+  /** A round RUN button, held down to sprint. Sits above the action button, under the other thumb from the joystick. */
+  private buildRunButton() {
+    this.runBg = this.add.graphics();
+    const label = this.add.text(0, 0, 'RUN', {
+      fontFamily: FONT, fontSize: '20px', fontStyle: 'bold', color: COLORS.text, resolution: 2,
+    }).setOrigin(0.5);
+    this.runBtn = this.add.container(0, 0, [this.runBg, label]).setDepth(3);
+    this.runBtn.setSize(84, 84);
+    this.drawRun(false);
+    this.runBtn.setInteractive();
+    const release = () => {
+      this.registry.set('sprint', false);
+      this.drawRun(false);
+    };
+    this.runBtn.on('pointerdown', () => {
+      this.registry.set('sprint', true);
+      this.drawRun(true);
+    });
+    this.runBtn.on('pointerup', release);
+    this.runBtn.on('pointerout', release);
+    this.runBtn.on('pointerupoutside', release);
+  }
+
+  private drawRun(pressed: boolean) {
+    const g = this.runBg;
+    g.clear();
+    g.fillStyle(0x000000, 0.35).fillCircle(0, 4, 40);
+    g.fillStyle(pressed ? 0xe0a040 : 0x4a5a8a, 0.92).fillCircle(0, pressed ? 3 : 0, 40);
+    g.lineStyle(4, 0xf4ecd0, 1).strokeCircle(0, pressed ? 3 : 0, 40);
   }
 
   private drawAction(pressed: boolean) {
@@ -477,7 +515,11 @@ export class UIScene extends Phaser.Scene {
     // The world freezes behind the pause menu and behind sheets (report, bag, end of day).
     this.registry.set('paused', this.paused || this.sheet.isOpen || this.map.isOpen);
     this.actionBtn.setVisible(this.context !== null && !blocking);
-    if (blocking) this.restStick();
+    this.runBtn.setVisible(!blocking);
+    if (blocking) {
+      this.restStick();
+      this.registry.set('sprint', false);
+    }
   }
 
   private openDialog(req: DialogRequest) {

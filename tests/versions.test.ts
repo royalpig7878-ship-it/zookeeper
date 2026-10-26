@@ -29,19 +29,19 @@ describe('every generator version is frozen, so saved games keep their parks', (
   });
 
   it('asking for each version gives that version', () => {
-    for (const v of [3, 4, 5]) {
+    for (const v of [3, 4, 5, 6]) {
       const z = buildZoo('versions-demo', { version: v });
       expect(z.generatorVersion, `v${v}`).toBe(v);
       expect(validateZoo(z), `v${v}`).toEqual([]);
     }
-    expect(buildZoo('versions-demo').generatorVersion).toBe(5);
+    expect(buildZoo('versions-demo').generatorVersion).toBe(6);
     expect(buildZoo('versions-demo', { version: 4 })).not.toEqual(buildZoo('versions-demo', { version: 5 }));
   });
 });
 
 describe('animals always start inside their pens', () => {
   it('every starting place of every habitat is inside its pen, in every version', () => {
-    for (const version of [1, 3, 4, 5]) {
+    for (const version of [1, 3, 4, 5, 6]) {
       for (const seed of ['pens-a', 'pens-b', 'pens-c']) {
         const z = buildZoo(seed, { version });
         for (const h of z.habitats) {

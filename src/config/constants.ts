@@ -1,10 +1,11 @@
 /** Shared game constants. Tweak numbers here rather than in scene code. */
 export const TILE = 32;
-export const GENERATOR_VERSION = 5;
+export const GENERATOR_VERSION = 6;
 export const DEFAULT_SEED = 'willow-creek';
 
 export const PLAYER = {
   speed: 120, // pixels per second
+  sprintMultiplier: 1.7, // holding Shift or the RUN button on foot
   radius: 9, // collision half-size in pixels (feet area)
   interactRange: 44, // pixels
 };
