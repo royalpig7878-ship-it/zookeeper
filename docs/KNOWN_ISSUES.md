@@ -1,7 +1,7 @@
 # Known Issues
 
 ## Park versions
-- A saved game of generator version 4 is matched to whichever of the two version 4 layouts its animals fit. If a save has no animals to check, it gets the scattered park. Items that are saved by position (waste, jobs, mown grass) are checked against the park too, and anything that does not fit is dropped, so a mismatched save would lose its tidying progress but nothing else.
+- A saved game of generator version 4 is matched to whichever of the two version 4 layouts its animals fit. If a save has no animals to check, it gets the scattered park. Saved jobs (waste, leaves and so on) are checked against the park and dropped if they do not fit, and animals outside their pens are put back. The saved mown-grass list is not checked, so in a mismatched save some grass could look mown or tall in the wrong places.
 
 ## Walk-in buildings and natural park gaps
 - Habitats all face south (their hatches and gates are on the south fence), so the park is scattered but not rotated. Adding other orientations would need the hatch and gate logic to change.
