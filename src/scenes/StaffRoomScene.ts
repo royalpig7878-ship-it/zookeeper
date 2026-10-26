@@ -3,9 +3,12 @@ import { PLAYER, TILE } from '../config/constants';
 import { Facing, SaveData, browserStore, writeSave } from '../core/save';
 import { NOTES, NOTE_EVENT_TEXT } from '../data/notes';
 import { Clock, formatTime, newClock } from '../systems/clock';
-import { storyLines } from '../systems/story';
+import { storyLines, storyState } from '../systems/story';
+import { CareerManager } from '../career/manager';
+import { migrateCareer } from '../career/career';
+import { careerLine, journalSheet, JournalTab } from '../career/journal';
 import { weatherFor, weatherLines } from '../systems/weather';
-import { History, ZooEvent, newHistory, photosUnlockedBy, recordEvent, unlockedPhotos } from '../systems/history';
+import { History, ZooEvent, hasEvent, newHistory, photosUnlockedBy, recordEvent, unlockedPhotos } from '../systems/history';
 import { Slot, addItem } from '../systems/inventory';
 import {
   bagSheet, confirmEndSheet, noticeboardSheet, notesSheet, photosSheet, reportSheet,
@@ -35,6 +38,7 @@ export class StaffRoomScene extends Phaser.Scene {
   private discovered = new Set<string>();
   private inventory: Slot[] = [];
   private tasks: TaskState[] = [];
+  private career!: CareerManager;
 
   private player!: Phaser.GameObjects.Image;
   private px = 0;
@@ -61,6 +65,10 @@ export class StaffRoomScene extends Phaser.Scene {
     this.discovered = new Set(data.save.discovered);
     this.inventory = data.save.inventory ?? [];
     this.tasks = data.save.tasks ?? [];
+    // The same career as the park: it travels in the save snapshot.
+    const state = data.save.career ?? migrateCareer(this.history.events.map((e) => e.key).filter((k): k is string => !!k), this.clock.day);
+    this.save = { ...this.save, career: state };
+    this.career = new CareerManager(state, (k) => hasEvent(this.history, k) || this.flags.has(k));
     this.nearby = undefined;
     this.contextLabel = null;
     this.leaving = false;
@@ -272,20 +280,28 @@ export class StaffRoomScene extends Phaser.Scene {
     this.discovered.add('note-routine');
     this.record({ category: 'milestone', key: 'locker-opened', text: 'You collected your inspection notebook and first-aid kit from your new locker.' });
     this.record({ category: 'discovery', key: 'discovered-note-routine', text: NOTE_EVENT_TEXT['note-routine'] });
+    this.career.fromTask('equipment-collected', this.clock.day);
     this.taskEvent('equipment-collected');
     const note = NOTES['note-routine'];
     this.say('Your locker', 'Inside: an inspection notebook and a first-aid kit, both with your name on them.', ...note.pages);
   }
 
-  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'terminal' | 'map') {
+  private openCareer(tab: JournalTab) {
+    const story = storyState(this.history, this.flags);
+    this.sheet(journalSheet(tab, this.career.ctx, { goal: story.current?.objective ?? null, chaptersDone: story.completed.map((c) => `Chapter ${c.number}: ${c.title}`) }));
+  }
+
+  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'terminal' | 'map' | 'career') {
     if (this.registry.get('modal') || this.leaving) return;
+    if (kind === 'career') return this.openCareer('overview');
     if (kind === 'map') return this.game.events.emit('ui:toast', 'The map is for outdoors. Leave the staff room to see the park.');
     if (kind === 'bag') this.sheet(bagSheet(this.inventory));
-    else if (kind === 'terminal') this.sheet(reportSheet(this.tasks, this.clock, `Care Terminal - Day ${this.clock.day}`, [{ id: 'end-shift', label: 'End Shift', color: 0x4f78b0 }], [], storyLines(this.history, this.flags), weatherLines(weatherFor(this.seed, this.clock.day))));
+    else if (kind === 'terminal') this.sheet(reportSheet(this.tasks, this.clock, `Care Terminal - Day ${this.clock.day}`, [{ id: 'career:overview', label: 'Career' }, { id: 'end-shift', label: 'End Shift', color: 0x4f78b0 }], [], [...storyLines(this.history, this.flags), ...careerLine(this.career.ctx).map((l) => `Career: ${l}`)], weatherLines(weatherFor(this.seed, this.clock.day))));
     else this.sheet(reportSheet(this.tasks, this.clock, undefined, [], [], storyLines(this.history, this.flags), weatherLines(weatherFor(this.seed, this.clock.day))));
   }
 
   private onSheetAction(id: string) {
+    if (id.startsWith('career:')) return this.openCareer(id.slice(7) as JournalTab);
     if (id === 'end-shift') {
       const s = summary(this.tasks);
       if (s.requiredDone >= s.requiredTotal) return this.leave(true);

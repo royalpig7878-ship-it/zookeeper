@@ -210,6 +210,17 @@ Honest notes: the new park is judged by eye on a few seeds and by tests, not pla
 
 A saved game made on the first scattered park (generator version 4) was loaded into the loop park after that code replaced version 4 without a new number, so its animals kept their old coordinates, which were open ground in the new park. Fixed three ways: the scattered park is restored as the frozen version 4 and the loop park is version 5; a saved game of version 4 is matched to whichever park its animals fit (the loop park is still reported as 4 so the save keeps finding it); and any animal whose saved spot is not inside its own pen is put back where its species starts. Tests keep fingerprints of versions 3, 4 and 5 so a layout cannot change under a saved game again.
 
+## Career system (phases 1 to 3 of the career brief)
+
+- [x] Phase 1, foundation: `src/career/` (types, data-driven ranks and skills, the rules, a manager the scenes talk to). Seven ranks defined, 7 competencies, career points, save version 9 with `career`, a career started from the history for older saves, and a bag that grows with rank
+- [x] Phase 2, promotions: requirements for ranks 1 to 3, a professional review at the end of every shift (rolling, last 3 shifts), a short Daniel conversation, a reward, and a professional history entry. A promotion can only happen once and is re-checked when accepted
+- [x] Phase 3, journal: Overview, Skills, Work, Awards, History tabs on the existing sheet panel (J key, or care report then Career, also in the staff room terminal)
+- [ ] Phase 4, specialisations; Phase 5, training and career missions; Phase 6, Lead and Head Keeper, the storm and the final letter; Phase 7, polish. Not built. See `CAREER_DESIGN.md`
+- Tests: 24 new in `tests/career.test.ts` (awards, repeats, daily limits, grinding, skill levels, promotion, double promotion, review, rolling recovery, save and load, damaged saves, old-save migration, missing animals, the journal, bag size). 331 in total. Checked by hand in the browser at phone size: an old save became a career, awards, a promotion through Daniel, the bag growing from 18 to 20, saving and reloading the rank, and the journal tabs
+- Not tried: a whole real playthrough from the first shift to the first promotion by playing (the promotion was driven by test calls), and the staff-room journal button
+
+When you add a career event: add an award rule in `definitions.ts`, call `career.award(...)` (or map a task event or history key in `manager.ts`) where the real thing happens, and add a test.
+
 ## Next steps
 
 All eleven milestones are built. The most useful next work is playing it on a real phone and noting what feels wrong, then tuning (see KNOWN_ISSUES), writing Chapters 3 to 6, and final art. Earlier note for reference: Milestone 11 was polish (final art, animations, sound, settings, performance, accessibility, save recovery, mobile testing, production build). Earlier note for reference: Milestone 10 was the living zoo. Between-shift simulation, relationships, baby animals, growth, breeding rules, weather and random scenarios. Earlier note for reference: Milestone 9 was story chapters. Earlier note for reference: seeded generation with several habitats, buildings, paths, pond and maintenance areas, navigation validation and a fallback layout. (This will need the zoo layout code to move from a fixed layout to a generator.)

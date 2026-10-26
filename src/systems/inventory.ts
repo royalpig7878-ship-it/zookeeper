@@ -7,6 +7,13 @@ export interface Slot {
 
 export const INVENTORY_SLOTS = 18;
 
+/** The bag's size right now: the base, plus whatever the keeper's rank has earned (set by the game, see the career). */
+let bagCapacity = INVENTORY_SLOTS;
+export const getBagCapacity = () => bagCapacity;
+export function setBagCapacity(n: number) {
+  bagCapacity = Math.max(INVENTORY_SLOTS, Math.floor(n));
+}
+
 export function countItem(inv: readonly Slot[], id: string): number {
   return inv.reduce((n, s) => (s.id === id ? n + s.qty : n), 0);
 }
@@ -16,7 +23,7 @@ export function hasItem(inv: readonly Slot[], id: string): boolean {
 }
 
 /** How many of `id` would fit right now. */
-export function roomFor(inv: readonly Slot[], id: string, capacity = INVENTORY_SLOTS): number {
+export function roomFor(inv: readonly Slot[], id: string, capacity = bagCapacity): number {
   const stack = ITEMS[id]?.stack ?? 1;
   let room = 0;
   for (const s of inv) if (s.id === id) room += stack - s.qty;
@@ -25,7 +32,7 @@ export function roomFor(inv: readonly Slot[], id: string, capacity = INVENTORY_S
 }
 
 /** Add items, filling existing stacks first. Returns how many did NOT fit. */
-export function addItem(inv: Slot[], id: string, qty: number, capacity = INVENTORY_SLOTS): number {
+export function addItem(inv: Slot[], id: string, qty: number, capacity = bagCapacity): number {
   if (!ITEMS[id]) throw new Error(`Unknown item: ${id}`);
   const stack = ITEMS[id].stack;
   let left = qty;

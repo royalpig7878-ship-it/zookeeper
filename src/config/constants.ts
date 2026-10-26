@@ -15,7 +15,7 @@ export const CAMERA_ZOOM = 2;
 export const SAVE_KEY = 'zookeeper.save';
 /** a second copy, kept from the end of the last day, to restore from if the main save is ever damaged */
 export const BACKUP_KEY = 'zookeeper.save.backup';
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 export const AUTOSAVE_SECONDS = 30;
 
 /** How many in-game minutes pass per real second. Needs and animal rates use game minutes. */

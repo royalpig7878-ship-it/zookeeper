@@ -11,6 +11,8 @@ import { AnimalMemory, validateMemory } from '../animals/memory';
 import { History, validateHistory } from '../systems/history';
 import { MedicalState, validateMedical } from '../systems/medical';
 import { LifeState, Sex, validateLife } from '../systems/life';
+import { validateCareer } from '../career/career';
+import type { CareerState } from '../career/types';
 import type { Clock } from '../systems/clock';
 import type { Pile } from '../systems/cleaning';
 import type { Slot } from '../systems/inventory';
@@ -50,6 +52,8 @@ export interface SaveData {
   medical?: MedicalState;
   /** Added in save version 8 (the living zoo): pregnancies, births and the last random happening. Missing in older saves. */
   life?: LifeState;
+  /** Added in save version 9 (the career). Missing in older saves: the game then starts a career from the history. */
+  career?: CareerState;
 }
 
 export interface AnimalSave {
@@ -166,10 +170,17 @@ export function validateSave(raw: unknown): ValidationResult {
     if (typeof m === 'string') return { ok: false, reason: m };
     medical = m;
   }
+  let career: CareerState | undefined;
+  if (s.career !== undefined) {
+    const k = validateCareer(s.career);
+    if (typeof k === 'string') return { ok: false, reason: k };
+    career = k;
+  }
   return {
     ok: true,
     data: {
       ...workday,
+      career,
       life,
       medical,
       habitatStations,

@@ -61,5 +61,12 @@ What is still open, grouped by what it needs. Items that were fixed have been re
 
 - A game saved before park version 6 keeps its own park, including a few signs that stand inside the walkway. Start a new game to get signs beside the path. (Parks from version 5 on already have a loop path around the whole zoo.)
 
+## Career
+- Only ranks 1 to 3 can be reached. Senior, Specialist, Lead and Head Zookeeper are defined but not playable. Specialisations, training lessons, career missions (Difficult Case, Habitat Project, New Arrival, Mentor, Storm, Final Letter) and cosmetic rewards are not built
+- The numbers (points, thresholds, three shifts for the first promotion) are first guesses and have not been tuned by playing many days
+- Not tested by a full real playthrough: promotion was driven by code in the browser, not by playing through days. The journal on a real phone has not been tried
+- A save from before careers starts a career that counts only finished shifts and chapters; feeding and cleaning counts start from zero, so the first promotion needs a few new days
+- The career journal can be opened with the J key or from the care report, not from the pause menu (it would not fit on a short phone screen)
+
 ## Bugs
 - The RUN button is shown in the staff room too, but sprinting only works outside (on foot, not on the mower or boat).

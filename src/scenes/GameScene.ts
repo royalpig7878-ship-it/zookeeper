@@ -4,6 +4,9 @@ import {
 } from '../config/constants';
 import { BOAT_SIZE, MOWER_SIZE } from '../art/pixelArt';
 import { KeeperAnim } from '../anim/keeper';
+import { CareerManager } from '../career/manager';
+import { migrateCareer, newCareer } from '../career/career';
+import { careerLine, journalSheet, JournalTab } from '../career/journal';
 import { PlayerAction, JobKind, actionForJob } from '../anim/clips';
 import { FxLayer } from '../fx/fxLayer';
 import type { FxKind } from '../fx/particles';
@@ -26,10 +29,10 @@ import { settings } from '../core/settingsInstance';
 import { Rng } from '../core/rng';
 import { MessSpots, Pile, countKind, initialPiles, spawnOvernight, validPiles } from '../systems/cleaning';
 import { Clock, SHIFT_END, advanceClock, daylight, formatTime, newClock, phaseOf, startNextDay } from '../systems/clock';
-import { History, ZooEvent, newHistory, photosUnlockedBy, recordEvent } from '../systems/history';
-import { INVENTORY_SLOTS, Slot, addItem, countItem, hasItem, removeItem, roomFor } from '../systems/inventory';
+import { History, ZooEvent, hasEvent, newHistory, photosUnlockedBy, recordEvent } from '../systems/history';
+import { Slot, getBagCapacity, setBagCapacity, addItem, countItem, hasItem, removeItem, roomFor } from '../systems/inventory';
 import { bagSheet, clinicSheet, enrichSheet, historySheet, medicalSheet, recipesSheet, reportSheet, shedSheet, storeSheet } from '../systems/sheets';
-import { chapterCompleteKey, danielTalk, newlyCompleted, objectiveText, storyLines } from '../systems/story';
+import { chapterCompleteKey, danielTalk, newlyCompleted, objectiveText, storyLines, storyState } from '../systems/story';
 import { NOTES } from '../data/notes';
 import { SCENARIOS } from '../data/scenarios';
 import {
@@ -134,6 +137,8 @@ export class GameScene extends Phaser.Scene {
   private interactables: Interactable[] = [];
   private job: TimedJob | null = null;
   private keeperAnim!: KeeperAnim;
+  private career!: CareerManager;
+  private careerNoteClock = 0;
   private fx!: FxLayer;
   private dustClock = 0;
   private lastMinute = -1;
@@ -207,6 +212,12 @@ export class GameScene extends Phaser.Scene {
     this.discovered = new Set(data.save?.discovered ?? []);
     this.history = data.save?.history ?? newHistory();
     this.flags = new Set(data.save?.flags ?? []);
+    // Careers: a saved one, or (for an older save) one started from the history, or a fresh one.
+    const careerState = data.save?.career
+      ?? (data.save ? migrateCareer(this.history.events.map((e) => e.key).filter((k): k is string => !!k), data.save.clock?.day ?? 1) : newCareer());
+    this.career = new CareerManager(careerState, (k) => hasEvent(this.history, k) || this.flags.has(k));
+    setBagCapacity(this.career.bagSlots);
+    this.careerNoteClock = 0;
     this.sinceSave = 0;
     this.life = data.save?.life ? JSON.parse(JSON.stringify(data.save.life)) : newLife();
     this.medical = data.save?.medical ? JSON.parse(JSON.stringify(data.save.medical)) : newMedical();
@@ -678,6 +689,13 @@ export class GameScene extends Phaser.Scene {
     }
     this.updatePlayerSprite(moving, dt);
     this.fx.update(dt);
+    // Career news (a skill level, a promotion) is shown in one short line, and only when nothing is in progress.
+    this.careerNoteClock += dt;
+    if (this.careerNoteClock > 2.5 && !this.job && !modal) {
+      this.careerNoteClock = 0;
+      const note = this.career.drain();
+      if (note) this.toast(note);
+    }
     if (this.mode !== 'walk') this.updateVehicle(dt, moving);
 
     for (const view of this.animals) {
@@ -823,6 +841,7 @@ export class GameScene extends Phaser.Scene {
       this.clippings.explode(3, x * TILE + TILE / 2, y * TILE + TILE / 2);
     }
     if (cut.length) {
+      this.career.award('mow', this.clock.day, { key: 'mow' });
       this.record({ category: 'care', key: 'first-mow', text: 'You mowed the overgrown lawn for the first time.' });
       const finished = applyTaskEvent(this.tasks, 'grass-mowed', cut.length);
       if (finished.length) {
@@ -1013,6 +1032,7 @@ export class GameScene extends Phaser.Scene {
   private record(e: Omit<ZooEvent, 'id' | 'day' | 'minutes'>): ZooEvent | null {
     const ev = recordEvent(this.history, this.clock, e);
     if (ev) this.updateObjective(true);
+    if (ev?.key) this.career.fromHistory(ev.key, this.clock.day);
     for (const p of photosUnlockedBy(ev)) {
       this.time.delayedCall(1800, () => this.toast(`New photograph for the staff room wall: ${p.title}`));
     }
@@ -1074,6 +1094,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Record a task event, and celebrate anything it finished. */
   private taskEvent(event: TaskEvent, amount = 1) {
+    this.career.fromTask(event, this.clock.day);
     const finished = applyTaskEvent(this.tasks, event, amount);
     if (finished.length) {
       this.toast(`Task complete: ${finished[0].title.replace(/ \(.*\)$/, '')}`);
@@ -1167,7 +1188,7 @@ export class GameScene extends Phaser.Scene {
   private takeSet(ids: string[], event: TaskEvent | null, what: string) {
     const missing = ids.filter((id) => !hasItem(this.inventory, id));
     if (missing.length === 0) return this.say('Maintenance shed', `You already have the ${what}.`);
-    if (this.inventory.length + missing.length > INVENTORY_SLOTS) {
+    if (this.inventory.length + missing.length > getBagCapacity()) {
       return this.say('Bag full', `You need ${missing.length} free slots for the ${what}. Put something down first.`);
     }
     for (const id of missing) addItem(this.inventory, id, 1);
@@ -1215,6 +1236,7 @@ export class GameScene extends Phaser.Scene {
       for (const [id, n] of need) removeItem(this.inventory, id, n);
       addItem(this.inventory, r.output, 1);
       this.toast(`Prepared a ${out}`);
+      this.career.award('prepare', this.clock.day);
       if (r.species === 'elephant') {
         this.record({ category: 'care', animalId: 'buster', key: 'first-meal', text: "You prepared Buster's first meal at the prep counter." });
         this.taskEvent('meal-prepared');
@@ -1314,6 +1336,7 @@ export class GameScene extends Phaser.Scene {
       this.placeEnrichment(rt, { item, x: tileCenter(tx), y: tileCenter(ty), interest: 100 });
       this.enrichedToday.add(habitatId);
       this.toast(`The ${rt.species.group} have something new`);
+      this.career.award('enrich', this.clock.day, { key: habitatId, group: habitatId });
       this.save(false);
     }, 'enrich');
   }
@@ -1415,6 +1438,7 @@ export class GameScene extends Phaser.Scene {
       this.taskEvent(`monitor:${a.id}`);
     }
     this.pushInspect(view);
+    this.career.award('inspect', this.clock.day, { key: a.id });
     this.taskEvent('animal-inspected');
     const sick = caseFor(this.medical, a.id);
     if (sick?.stage === 'early') this.toast(`Something seems wrong with ${a.name}. Tap Health.`);
@@ -1449,10 +1473,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------ sheets: report, bag, history
-  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'history' | 'medical' | 'map') {
+  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'history' | 'medical' | 'map' | 'career') {
     if (this.registry.get('modal') || this.transitioning || this.job) return;
     this.inspecting = null;
     if (kind === 'bag') this.game.events.emit('ui:sheet', bagSheet(this.inventory));
+    else if (kind === 'career') this.openCareer('overview');
     else if (kind === 'map') {
       this.game.events.emit('ui:map', { view: mapView(this.layoutData), player: this.indoor ? undefined : { x: this.px / TILE, y: this.py / TILE } });
     } else if (kind === 'medical') this.openMedical();
@@ -1465,11 +1490,21 @@ export class GameScene extends Phaser.Scene {
     } else {
       const title = kind === 'report' ? `Morning Report - Day ${this.clock.day}` : undefined;
       const names = this.animalNames();
-      this.game.events.emit('ui:sheet', reportSheet(this.tasks, this.clock, title, [], activeCases(this.medical).map((c) => statusLine(c, names[c.animalId] ?? 'An animal')), storyLines(this.history, this.flags), weatherLines(this.weather)));
+      this.game.events.emit('ui:sheet', reportSheet(this.tasks, this.clock, title, [{ id: 'career:overview', label: 'Career' }], activeCases(this.medical).map((c) => statusLine(c, names[c.animalId] ?? 'An animal')), [...storyLines(this.history, this.flags), ...careerLine(this.career.ctx).map((l) => `Career: ${l}`)], weatherLines(this.weather)));
     }
   }
 
+  /** The career journal, on one of its tabs. */
+  private openCareer(tab: JournalTab) {
+    const story = storyState(this.history, this.flags);
+    this.game.events.emit('ui:sheet', journalSheet(tab, this.career.ctx, {
+      goal: story.current?.objective ?? null,
+      chaptersDone: story.completed.map((c) => `Chapter ${c.number}: ${c.title}`),
+    }));
+  }
+
   private onSheetAction(id: string) {
+    if (id.startsWith('career:')) return this.openCareer(id.slice(7) as JournalTab);
     if (id.startsWith('shed-')) {
       // Close the sheet first so the world is un-paused, then act.
       this.game.events.emit('ui:sheet-close');
@@ -1540,8 +1575,14 @@ export class GameScene extends Phaser.Scene {
         if (f.note) lines.push(`#${NOTES[f.note].title.toUpperCase()}`, ...NOTES[f.note].pages);
       }
 
+      // How the animals are at the end of the shift (before the night), for the career review.
+      const welfare = this.animals.length
+        ? this.animals.reduce((n, v) => n + (v.state.needs.health + (100 - v.state.needs.hunger) + (100 - v.state.needs.thirst) + v.state.needs.happiness) / 4, 0) / this.animals.length
+        : 100;
+      let neglect = 0;
       lines.push('#OVERNIGHT');
       for (const rt of this.habitats.values()) {
+        let wentWithout = false;
         const mine = this.animalsIn(rt.info.id);
         const who = rt.info.id === 'elephant' ? mine[0].state.name : `The ${rt.species.group}`;
         let ate = 0;
@@ -1556,14 +1597,21 @@ export class GameScene extends Phaser.Scene {
         if (ate > 1) lines.push(`${who} nibbled some food from the feeder overnight.`);
         else if (rt.food.amount <= 0 && mine.some((v) => v.state.needs.hunger > 50)) {
           lines.push(`The feeder was empty, so ${who} went to bed a little hungry.`);
+          wentWithout = true;
           this.record({ category: 'care', animalId: rt.info.id === 'elephant' ? 'buster' : undefined, key: `hungry-night-${rt.info.id}-${day}`, text: `The feeder was empty overnight and ${who} went to bed a little hungry.` });
         }
         if (drank > 1) lines.push(`${who} had a drink from the trough.`);
         else if (rt.water.amount <= 0 && mine.some((v) => v.state.needs.thirst > 50)) {
           lines.push(`The trough was empty, so ${who} went to bed thirsty.`);
+          wentWithout = true;
           this.record({ category: 'care', animalId: rt.info.id === 'elephant' ? 'buster' : undefined, key: `thirsty-night-${rt.info.id}-${day}`, text: `The water trough was empty overnight and ${who} went to bed thirsty.` });
         }
+        if (wentWithout) neglect++;
       }
+      const outcome = this.career.finishShift({ day, welfare: Math.round(welfare), requiredDone: before.requiredDone, requiredTotal: before.requiredTotal, neglect });
+      lines.push('#YOUR CAREER', ...careerLine(this.career.ctx));
+      if (this.career.state.evaluation) lines.push(`Review: ${this.career.state.evaluation.recommendation}`);
+      if (outcome.promotionReady) lines.push('Daniel would like a word with you about your work.');
       const careSnap = this.careSnapshot();
       const vetLines = this.medicalOvernight(day);
       const returned = this.collectEnrichment();
@@ -1919,6 +1967,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   private talkDaniel() {
+    // A promotion that the record really backs up is the first thing Daniel talks about.
+    if (this.career.promotionAvailable) {
+      const rank = this.career.accept(this.clock.day);
+      if (rank) {
+        setBagCapacity(this.career.bagSlots);
+        this.record({ category: 'milestone', key: `promoted-${rank.id}`, text: rank.promotion.record });
+        this.game.events.emit('sfx', 'complete');
+        const perks = rank.rewards.map((r) => r.text);
+        this.say(rank.promotion.speaker, ...rank.promotion.pages, `New rank: ${rank.title}.`, ...(perks.length ? [`Reward: ${perks.join(' ')}`] : []), 'Your Career Journal has the details. Press J, or tap the clipboard and choose Career.');
+        this.save(false);
+        return;
+      }
+    }
     const talk = danielTalk(this.history, this.flags);
     for (const r of talk.records) this.record({ category: 'milestone', key: r.key, text: r.text });
     const pages = [...talk.pages];
@@ -1943,6 +2004,7 @@ export class GameScene extends Phaser.Scene {
     const out: { heading: string; pages: string[]; note?: string }[] = [];
     for (const c of newlyCompleted(this.history, this.flags)) {
       this.record({ category: 'milestone', key: chapterCompleteKey(c), text: `Chapter ${c.number} complete: ${c.title}.` });
+      this.career.award('chapter', this.clock.day, { key: chapterCompleteKey(c) });
       const note = c.finale.note;
       if (note && !this.discovered.has(note)) {
         this.discovered.add(note);
@@ -2032,6 +2094,7 @@ export class GameScene extends Phaser.Scene {
     if (!c) return;
     this.startJob('Helping Dr. Shah...', 3, () => {
       if (!examine(c, this.clock.day, true)) return;
+      this.career.award('assist', this.clock.day, { key: c.id });
       this.finishExam(c, true);
     }, 'assist');
   }
@@ -2070,6 +2133,7 @@ export class GameScene extends Phaser.Scene {
     this.startJob('Mixing medicine into the feed...', 2, () => {
       if (!giveDose(c, this.clock.day) || !removeItem(this.inventory, 'medicine', 1)) return;
       this.toast(`Dose ${c.dosesGiven} of ${c.dosesNeeded} given`);
+      this.career.award('dose', this.clock.day, { key: c.id });
       if (c.dosesGiven >= c.dosesNeeded) this.record({ category: 'care', animalId: c.animalId, key: `${c.id}-doses`, text: `${this.caseName(c)} had the last dose of ${defOf(c).medicine?.name.toLowerCase()}.` });
       this.bond(view, 1);
       this.syncMedical();
@@ -2172,6 +2236,7 @@ export class GameScene extends Phaser.Scene {
         },
       })),
       clock: { ...this.clock },
+      career: JSON.parse(JSON.stringify(this.career.state)),
       inventory: this.inventory.map((s) => ({ ...s })),
       tasks: this.tasks.map((t) => ({ ...t })),
       piles: this.piles.map((p) => ({ ...p })),

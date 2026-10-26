@@ -17,6 +17,8 @@ export interface SheetData {
   slots?: SheetSlot[];
   slotCapacity?: number;
   buttons: { id: string; label: string; color?: number }[];
+  /** short labels: fit three buttons to a row on a narrow screen (used by the career journal tabs) */
+  compactButtons?: boolean;
 }
 
 /**
@@ -159,7 +161,7 @@ export class SheetPanel {
     const bh = this.h < 330 ? 40 : 46;
     const by = this.h - bh / 2 - 12;
     const n = d.buttons.length;
-    const perRowMax = Math.max(1, Math.floor((this.w - 28 + 8) / (100 + 8)));
+    const perRowMax = Math.max(1, Math.floor((this.w - 28 + 8) / ((d.compactButtons ? 88 : 100) + 8)));
     const rows = Math.max(1, Math.ceil(n / perRowMax));
     const perRow = Math.ceil(n / rows);
     const btnW = Math.min(150, (this.w - 28) / perRow - 8);

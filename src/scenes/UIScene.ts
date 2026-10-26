@@ -159,6 +159,7 @@ export class UIScene extends Phaser.Scene {
     });
     kb.on('keydown-B', () => !this.blockedByOther() && this.game.events.emit('ui:open', 'bag'));
     kb.on('keydown-T', () => !this.blockedByOther() && this.game.events.emit('ui:open', 'tasks'));
+    kb.on('keydown-J', () => !this.blockedByOther() && this.game.events.emit('ui:open', 'career'));
     kb.on('keydown-M', () => (this.map.isOpen ? this.closeMap() : !this.blockedByOther() && this.game.events.emit('ui:open', 'map')));
 
     const ev = this.game.events;

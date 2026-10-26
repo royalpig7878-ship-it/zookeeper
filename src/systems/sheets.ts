@@ -10,7 +10,7 @@ import { TRAITS } from '../data/traits';
 import type { SheetData } from '../ui/sheet';
 import { Clock, formatTime } from './clock';
 import { History, ZooEvent, forAnimal, hasEvent, newestFirst, unlockedPhotos } from './history';
-import { INVENTORY_SLOTS, Slot, countItem, hasItem } from './inventory';
+import { Slot, countItem, getBagCapacity, hasItem } from './inventory';
 import { TaskState, reportLines } from './tasks';
 import { Relative, familyOf, stageWord } from './life';
 import type { Settings } from '../core/settings';
@@ -29,9 +29,9 @@ export const eventLine = (e: ZooEvent) => `Day ${e.day}, ${formatTime(e.minutes)
 export function bagSheet(inv: readonly Slot[]): SheetData {
   return {
     title: 'Bag',
-    subtitle: `${inv.length} of ${INVENTORY_SLOTS} slots used. The right tool is used automatically.`,
+    subtitle: `${inv.length} of ${getBagCapacity()} slots used. The right tool is used automatically.`,
     slots: inv.map((s) => ({ icon: `item_${s.id}`, label: ITEMS[s.id].name, qty: s.qty, desc: ITEMS[s.id].description })),
-    slotCapacity: INVENTORY_SLOTS,
+    slotCapacity: getBagCapacity(),
     buttons: [{ id: 'close', label: 'Close' }],
   };
 }
