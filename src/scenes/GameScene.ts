@@ -9,6 +9,7 @@ import { migrateCareer, newCareer } from '../career/career';
 import { careerLine, journalSheet, JournalTab } from '../career/journal';
 import { PlayerAction, JobKind, actionForJob } from '../anim/clips';
 import { FxLayer } from '../fx/fxLayer';
+import { PathEdgeLayer } from '../art/pathEdgesLayer';
 import type { FxKind } from '../fx/particles';
 import { CHORES, ChoreDef } from '../data/chores';
 import { BOAT, MOWER, cutGrassAt, drainBattery, lawnTiles, mownTile, regrow, tileKey } from '../systems/grounds';
@@ -140,6 +141,7 @@ export class GameScene extends Phaser.Scene {
   private career!: CareerManager;
   private careerNoteClock = 0;
   private fx!: FxLayer;
+  private edges: PathEdgeLayer | null = null;
   private dustClock = 0;
   private lastMinute = -1;
   private lastDaylight = -1;
@@ -270,6 +272,12 @@ export class GameScene extends Phaser.Scene {
     this.groundLayer = map.createLayer(0, tileset, 0, 0)!.setDepth(0);
 
     this.createLawn();
+    // Rounded path corners, drawn over the ground once the lawn is in its saved state.
+    this.edges = new PathEdgeLayer(this, L.terrain);
+    this.events.once('shutdown', () => {
+      this.edges?.destroy();
+      this.edges = null;
+    });
     this.placeObjects();
     this.createStations();
     this.createWorkday();
@@ -689,6 +697,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.updatePlayerSprite(moving, dt);
     this.fx.update(dt);
+    this.edges?.flush();
     // Career news (a skill level, a promotion) is shown in one short line, and only when nothing is in progress.
     this.careerNoteClock += dt;
     if (this.careerNoteClock > 2.5 && !this.job && !modal) {
@@ -837,6 +846,7 @@ export class GameScene extends Phaser.Scene {
     const cut = cutGrassAt(L.terrain, this.lawn, L.width, TILE, this.px, this.py, MOWER.cutRadius);
     for (const { x, y } of cut) {
       this.groundLayer.putTileAt(mownTile(x), x, y);
+      this.edges?.touch(x, y);
       this.mown.add(tileKey(x, y, L.width));
       this.clippings.explode(3, x * TILE + TILE / 2, y * TILE + TILE / 2);
     }
@@ -1645,6 +1655,7 @@ export class GameScene extends Phaser.Scene {
         const gy = Math.floor(k / L.width);
         L.terrain[gy][gx] = Terrain.TallGrass;
         this.groundLayer.putTileAt(Terrain.TallGrass, gx, gy);
+        this.edges?.touch(gx, gy);
       }
       const newDung = countKind(this.piles, 'dung') - dungBefore;
       const newLeaves = countKind(this.piles, 'leaves') - leavesBefore;

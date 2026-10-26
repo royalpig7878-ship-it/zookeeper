@@ -61,6 +61,9 @@ What is still open, grouped by what it needs. Items that were fixed have been re
 
 - A game saved before park version 6 keeps its own park, including a few signs that stand inside the walkway. Start a new game to get signs beside the path. (Parks from version 5 on already have a loop path around the whole zoo.)
 
+## Path edges
+- Path corners are rounded by a picture drawn over the ground (`world/pathEdges.ts`, `art/pathEdgesLayer.ts`), not by new tiles. Straight edges stay square on purpose. Corners are not rounded against water, shore or docks. Checked by eye on a few corners, and the redraw after mowing and regrowing has not been looked at closely
+
 ## Career
 - Only ranks 1 to 3 can be reached. Senior, Specialist, Lead and Head Zookeeper are defined but not playable. Specialisations, training lessons, career missions (Difficult Case, Habitat Project, New Arrival, Mentor, Storm, Final Letter) and cosmetic rewards are not built
 - The numbers (points, thresholds, three shifts for the first promotion) are first guesses and have not been tuned by playing many days
