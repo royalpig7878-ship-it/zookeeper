@@ -38,7 +38,7 @@ import {
   Candidate, DayCare, MedicalCase, MedicalState, activeCases, caseFor, collectMedicine, defOf, endOfDay, examine, giveDose,
   markArrived, maybeStartCase, newMedical, readyForCheck, recordSymptoms, recoveryCheck, reportToVet, statusLine, visitDue,
 } from '../systems/medical';
-import { HabitatInfo, InteractAction, Interactable, Terrain, ZooLayout, buildZoo, tileCenter } from '../world/layout';
+import { HabitatInfo, InteractAction, Interactable, Terrain, ZooLayout, animalsFit, buildZoo, insideHabitat, tileCenter } from '../world/layout';
 import { INTERIOR_IDS, InteriorId, InteriorLayout, buildInterior, fitInterior, withEnterableBuildings } from '../world/interiors';
 import { ROOM_BG } from '../world/staffRoom';
 import { collides, moveWithCollision, nearestWithin } from '../world/movement';
@@ -230,7 +230,10 @@ export class GameScene extends Phaser.Scene {
   create() {
     // Saved games remember which generator version built their zoo, so old saves load the same park.
     // Every zoo, old or new, has walk-in buildings: the kitchen, the shed and the clinic.
-    this.layoutData = withEnterableBuildings(buildZoo(this.seed, { version: this.startSave?.generatorVersion }));
+    this.layoutData = withEnterableBuildings(buildZoo(this.seed, {
+      version: this.startSave?.generatorVersion,
+      fits: (layout) => animalsFit(layout, this.startSave?.animals),
+    }));
     this.registry.set('seed', this.seed);
     const L = this.layoutData;
     this.cameras.main.setBackgroundColor('#1c2b1c');
@@ -522,8 +525,9 @@ export class GameScene extends Phaser.Scene {
       sex: a.sex ?? this.founderSex(a.id, rt.info.id), stage: 'adult', birthDay: a.birthDay, motherId: a.motherId, fatherId: a.fatherId,
     };
     st.stage = stageOf(lifeOf(st.speciesId), st.birthDay, this.clock.day);
-    // A saved spot is only trusted if it is still somewhere the animal can stand (e.g. the layout changed).
-    if (collides(st.x, st.y, rt.species.radius, rt.world.isBlocked)) {
+    // A saved spot is only trusted if it is still inside this animal's own pen and somewhere it can stand (e.g. if the
+    // park changed). Otherwise it goes back to where its species starts, so an animal can never turn up outside its pen.
+    if (!insideHabitat(this.layoutData, rt.info.id, st.x, st.y) || collides(st.x, st.y, rt.species.radius, rt.world.isBlocked)) {
       const start = rt.info.stations!.starts[0];
       st.x = tileCenter(start.x);
       st.y = tileCenter(start.y);

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TILE } from '../src/config/constants';
 import { hashSeed } from '../src/core/rng';
 import { generateZoo } from '../src/world/generator';
-import { MAP_H4, MAP_W4 } from '../src/world/generatorV4';
+import { MAP_H5, MAP_W5 } from '../src/world/generatorV5';
 import { INTERIOR_IDS, MAX_PAD_COLS, MAX_PAD_ROWS, buildInterior, fitInterior, withEnterableBuildings } from '../src/world/interiors';
 import { buildZoo } from '../src/world/layout';
 import { reachableTiles } from '../src/world/movement';
@@ -15,9 +15,9 @@ const zoos = SEEDS.map((s) => buildZoo(s));
 describe('a park that does not look laid out in a line (generator version 4)', () => {
   it('is bigger, version 4, valid and never needs the fallback map', () => {
     for (const z of zoos) {
-      expect(z.generatorVersion).toBe(4);
-      expect(z.width).toBe(MAP_W4);
-      expect(z.height).toBe(MAP_H4);
+      expect(z.generatorVersion).toBe(5);
+      expect(z.width).toBe(MAP_W5);
+      expect(z.height).toBe(MAP_H5);
       expect(validateZoo(z), z.seed).toEqual([]);
       expect(z.meta.usedFallback, z.seed).toBe(false);
     }

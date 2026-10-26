@@ -1,5 +1,8 @@
 # Known Issues
 
+## Park versions
+- A saved game of generator version 4 is matched to whichever of the two version 4 layouts its animals fit. If a save has no animals to check, it gets the scattered park. Items that are saved by position (waste, jobs, mown grass) are checked against the park too, and anything that does not fit is dropped, so a mismatched save would lose its tidying progress but nothing else.
+
 ## Walk-in buildings and natural park gaps
 - Habitats all face south (their hatches and gates are on the south fence), so the park is scattered but not rotated. Adding other orientations would need the hatch and gate logic to change.
 - The three rooms are fixed designs with fixed furniture, the same in every zoo. On a very tall or very wide screen the extra floor is empty: the furniture stays where it is.
