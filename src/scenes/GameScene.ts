@@ -39,7 +39,7 @@ import {
   markArrived, maybeStartCase, newMedical, readyForCheck, recordSymptoms, recoveryCheck, reportToVet, statusLine, visitDue,
 } from '../systems/medical';
 import { HabitatInfo, InteractAction, Interactable, Terrain, ZooLayout, buildZoo, tileCenter } from '../world/layout';
-import { INTERIOR_IDS, InteriorId, InteriorLayout, buildInterior, withEnterableBuildings } from '../world/interiors';
+import { INTERIOR_IDS, InteriorId, InteriorLayout, buildInterior, fitInterior, withEnterableBuildings } from '../world/interiors';
 import { ROOM_BG } from '../world/staffRoom';
 import { collides, moveWithCollision, nearestWithin } from '../world/movement';
 import type { SheetData } from '../ui/sheet';
@@ -133,7 +133,9 @@ export class GameScene extends Phaser.Scene {
 
   // inside a building (the prep kitchen, the shed or the clinic)
   private indoor: {
+    id: InteriorId;
     layout: InteriorLayout;
+    zoom: number;
     ox: number;
     oy: number;
     things: Phaser.GameObjects.GameObject[];
@@ -562,9 +564,15 @@ export class GameScene extends Phaser.Scene {
   private applyZoom() {
     const { width, height: h } = this.scale;
     if (this.indoor) {
-      // A room is small: zoom in as far as it still fits the screen.
-      const fit = Math.min(width / (this.indoor.layout.width * TILE), h / (this.indoor.layout.height * TILE));
-      this.cameras.main.setZoom(Math.min(3, Math.max(1, Math.floor(fit * 2) / 2)));
+      // The screen changed shape (the phone was turned): lay the room out again to fill it.
+      const { id, outside } = this.indoor;
+      const fresh = fitInterior(id, width, h, TILE);
+      if (fresh.pad.cols !== (this.indoor.layout.width - buildInterior(id).width) || fresh.pad.rows !== (this.indoor.layout.height - buildInterior(id).height)) {
+        this.clearIndoor();
+        this.setupIndoor(id, outside);
+      } else {
+        this.cameras.main.setZoom(fresh.zoom);
+      }
       return;
     }
     const zoom = Math.max(1, Math.round(h / (TILE * 12)));
@@ -1594,7 +1602,7 @@ export class GameScene extends Phaser.Scene {
     this.game.events.emit('ui:context', null);
     const cam = this.cameras.main;
     cam.once('camerafadeoutcomplete', () => {
-      this.setupIndoor(buildInterior(id), { x: tileCenter(door.x), y: tileCenter(door.y) });
+      this.setupIndoor(id, { x: tileCenter(door.x), y: tileCenter(door.y) });
       cam.fadeIn(180);
       this.transitioning = false;
       this.toast(this.indoor!.layout.title);
@@ -1622,9 +1630,7 @@ export class GameScene extends Phaser.Scene {
   private leaveBuildingNow() {
     const room = this.indoor;
     if (!room) return;
-    for (const t of room.things) t.destroy();
-    room.map.destroy();
-    this.indoor = null;
+    this.clearIndoor();
     this.px = room.outside.x;
     this.py = room.outside.y;
     this.facing = 'down';
@@ -1640,9 +1646,20 @@ export class GameScene extends Phaser.Scene {
     this.lastDaylight = -1;
   }
 
-  /** Build the room far off the edge of the park and put the keeper just inside its door. */
-  private setupIndoor(layout: InteriorLayout, outside: { x: number; y: number }) {
+  /** Take the room down (nothing else changes). */
+  private clearIndoor() {
+    const room = this.indoor;
+    if (!room) return;
+    for (const t of room.things) t.destroy();
+    room.map.destroy();
+    this.indoor = null;
+  }
+
+  /** Build the room far off the edge of the park, sized to fill the screen, and put the keeper just inside its door. */
+  private setupIndoor(id: InteriorId, outside: { x: number; y: number }) {
     const L = this.layoutData;
+    const { pad, zoom } = fitInterior(id, this.scale.width, this.scale.height, TILE);
+    const layout = buildInterior(id, pad);
     const ox = L.width + 40;
     const oy = 4;
     const things: Phaser.GameObjects.GameObject[] = [];
@@ -1660,7 +1677,7 @@ export class GameScene extends Phaser.Scene {
       things.push(this.add.image((ox + layout.npc.x + 0.5) * TILE, y, layout.npc.tex).setOrigin(0.5, 44 / 48).setDepth(y - 60));
     }
     this.indoor = {
-      layout, ox, oy, things, map, outside,
+      id, layout, zoom, ox, oy, things, map, outside,
       interactables: layout.interactables.map((i) => ({ ...i, x: i.x + ox, y: i.y + oy })),
     };
     this.px = (ox + layout.spawn.x) * TILE + TILE / 2;
@@ -1669,8 +1686,8 @@ export class GameScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.setBounds(ox * TILE, oy * TILE, layout.width * TILE, layout.height * TILE);
     cam.setBackgroundColor(ROOM_BG);
+    cam.setZoom(zoom);
     cam.centerOn(this.px, this.py);
-    this.applyZoom();
     this.rebuildInteractables();
     this.game.events.emit('ui:weather', { dim: 0, rain: false, fog: false, kind: 'clear' });
     this.game.events.emit('ui:daylight', 1);

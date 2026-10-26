@@ -37,6 +37,21 @@ export interface InteriorLayout {
   npc?: { tex: string; x: number; y: number };
 }
 
+/**
+ * Extra floor added to a room so it can fill any screen. `cols` more columns are shared between the left and the
+ * right (the furniture stays in the middle); `rows` more rows are added between the back furniture and the front,
+ * so the door stays at the bottom. The extra floor is real floor you can walk on.
+ */
+export interface Padding {
+  cols: number;
+  rows: number;
+}
+export const NO_PADDING: Padding = { cols: 0, rows: 0 };
+export const MAX_PAD_COLS = 12;
+export const MAX_PAD_ROWS = 18;
+/** Things at or below this row of the basic room are "in front" and move down when rows are added. */
+const FRONT_ROW = 6;
+
 function shell(width: number, height: number): Pick<InteriorLayout, 'tiles' | 'blocked'> {
   const tiles: number[][] = [];
   const blocked: boolean[][] = [];
@@ -55,9 +70,21 @@ function shell(width: number, height: number): Pick<InteriorLayout, 'tiles' | 'b
 
 /** Finish a room: lay the door mat, a rug, block everything solid, and add the way out. */
 function finish(
-  id: InteriorId, title: string, width: number, height: number, objects: InteriorObject[], interactables: Interactable[],
-  rug: { x: number; y: number; w: number; h: number } | null, doorX: number, npc?: InteriorLayout['npc'],
+  id: InteriorId, title: string, baseWidth: number, baseHeight: number, baseObjects: InteriorObject[], baseInteractables: Interactable[],
+  baseRug: { x: number; y: number; w: number; h: number } | null, baseDoorX: number, baseNpc: InteriorLayout['npc'] | undefined, pad: Padding,
 ): InteriorLayout {
+  const cols = Math.max(0, Math.min(MAX_PAD_COLS, Math.floor(pad.cols)));
+  const rows = Math.max(0, Math.min(MAX_PAD_ROWS, Math.floor(pad.rows)));
+  const left = Math.floor(cols / 2);
+  const sx = (x: number) => x + left;
+  const sy = (y: number) => (y >= FRONT_ROW ? y + rows : y);
+  const width = baseWidth + cols;
+  const height = baseHeight + rows;
+  const objects = baseObjects.map((o) => ({ ...o, x: sx(o.x), y: o.wall ? o.y : sy(o.y) }));
+  const interactables = baseInteractables.map((i) => ({ ...i, x: sx(i.x), y: sy(i.y) }));
+  const rug = baseRug && { x: sx(baseRug.x), y: sy(baseRug.y), w: baseRug.w, h: baseRug.h };
+  const doorX = sx(baseDoorX);
+  const npc = baseNpc && { ...baseNpc, x: sx(baseNpc.x), y: baseNpc.y };
   const { tiles, blocked } = shell(width, height);
   for (const x of [doorX, doorX + 1]) tiles[height - 1][x] = RoomTile.Mat;
   if (rug) for (let y = rug.y; y < rug.y + rug.h; y++) for (let x = rug.x; x < rug.x + rug.w; x++) tiles[y][x] = RoomTile.Rug;
@@ -78,7 +105,7 @@ const it = (id: string, x: number, y: number, label: string, title: string, acti
 });
 
 /** The food preparation kitchen: stores, a sink, the bucket rack and the prep counter. */
-function prepKitchen(): InteriorLayout {
+function prepKitchen(pad: Padding): InteriorLayout {
   return finish('prep', 'Food Preparation', 16, 10, [
     { tex: 'room_window', x: 2, y: 0, w: 2, solid: false, wall: true },
     { tex: 'room_window', x: 12, y: 0, w: 2, solid: false, wall: true },
@@ -95,11 +122,11 @@ function prepKitchen(): InteriorLayout {
     it('prep-fresh', 6, 5, 'FRESH STORE', 'Fresh store', 'fruit'),
     it('prep-counter', 12, 5, 'PREP COUNTER', 'Prep counter', 'prep'),
     it('prep-bucket', 14, 5, 'GET BUCKET', 'Bucket rack', 'bucket', 44),
-  ], { x: 5, y: 6, w: 6, h: 2 }, 7);
+  ], { x: 5, y: 6, w: 6, h: 2 }, 7, undefined, pad);
 }
 
 /** The maintenance shed: the tool wall, the workbench and the mower on its charger. */
-function shed(): InteriorLayout {
+function shed(pad: Padding): InteriorLayout {
   return finish('shed', 'Maintenance Shed', 14, 9, [
     { tex: 'room_tool_rack', x: 1, y: 0, w: 4, solid: false, wall: true },
     { tex: 'room_window', x: 8, y: 0, w: 2, solid: false, wall: true },
@@ -111,11 +138,11 @@ function shed(): InteriorLayout {
     it('shed-tools', 3, 3, 'TAKE TOOLS', 'Tool wall', 'tools', 60),
     it('shed-bench', 10, 5, 'WORKBENCH', 'Workbench', 'tools'),
     it('shed-mower', 2, 7, 'USE MOWER', 'The mower', 'tools', 56),
-  ], null, 6);
+  ], null, 6, undefined, pad);
 }
 
 /** The vet clinic: reception, an exam table, the medicine cabinet, and Dr. Shah. */
-function clinic(): InteriorLayout {
+function clinic(pad: Padding): InteriorLayout {
   return finish('vet', 'Veterinary Clinic', 14, 10, [
     { tex: 'room_window', x: 1, y: 0, w: 2, solid: false, wall: true },
     { tex: 'room_med_cabinet', x: 6, y: 0, w: 2, solid: false, wall: true },
@@ -127,12 +154,29 @@ function clinic(): InteriorLayout {
   ], [
     it('vet-desk', 3, 5, 'TALK TO DR. SHAH', 'Reception', 'clinic', 60),
     it('vet-cabinet', 7, 3, 'MEDICINE CABINET', 'Medicine cabinet', 'clinic', 56),
-  ], { x: 4, y: 6, w: 3, h: 2 }, 6, { tex: 'npc_shah_down_0', x: 4, y: 3 });
+  ], { x: 4, y: 6, w: 3, h: 2 }, 6, { tex: 'npc_shah_down_0', x: 4, y: 3 }, pad);
 }
 
-const BUILDERS: Record<InteriorId, () => InteriorLayout> = { prep: prepKitchen, shed, vet: clinic };
+const BUILDERS: Record<InteriorId, (pad: Padding) => InteriorLayout> = { prep: prepKitchen, shed, vet: clinic };
 
-export const buildInterior = (id: InteriorId): InteriorLayout => BUILDERS[id]();
+export const buildInterior = (id: InteriorId, pad: Padding = NO_PADDING): InteriorLayout => BUILDERS[id](pad);
+
+/**
+ * Choose how to show a room on a screen of the given size (in pixels): how much extra floor to add and how far to
+ * zoom in so that the room covers the whole screen, held either way up.
+ */
+export function fitInterior(id: InteriorId, screenW: number, screenH: number, tile: number): { pad: Padding; zoom: number } {
+  const base = buildInterior(id);
+  // a comfortable size first: as big as fits the smaller side of the room, but never smaller than normal
+  const z0 = Math.max(1, Math.min(3, Math.min(screenW / (base.width * tile), screenH / (base.height * tile))));
+  const cols = Math.max(0, Math.min(MAX_PAD_COLS, Math.ceil(screenW / (z0 * tile)) - base.width));
+  const rows = Math.max(0, Math.min(MAX_PAD_ROWS, Math.ceil(screenH / (z0 * tile)) - base.height));
+  const w = base.width + cols;
+  const h = base.height + rows;
+  // then zoom so the room (with its extra floor) covers the screen: the camera can then never show anything outside it
+  const zoom = Math.min(4, Math.max(screenW / (w * tile), screenH / (h * tile)));
+  return { pad: { cols, rows }, zoom };
+}
 
 // ---------------------------------------------------------------- doors on the outside
 

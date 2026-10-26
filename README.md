@@ -155,8 +155,8 @@ The zoo now changes over time, gently.
   - *Kitchen:* the dry store (hay, bamboo), the fresh store (fruit, vegetables, meat, fish), the bucket rack, a sink and the prep counter. Everything you did at the stands outside you now do in here.
   - *Shed:* the tool wall, the workbench and the mower on its charger. Taking the mower drives it out through the door.
   - *Clinic:* reception with Dr. Shah, an exam table and the medicine cabinet. Report symptoms and collect medicine here.
-  The clock keeps running while you are inside, and the door out is always at the bottom of the room.
-- **A park that is not in a line.** New games build a bigger park (64 by 50 tiles) with a round plaza in the middle, habitats and buildings scattered at different spots and heights, a rounded pond, a garden, little woods, and winding paths that branch and join. Every seed gives a different park. **Games you already started keep their old park**, but their buildings can be entered too.
+  The clock keeps running while you are inside, and the door out is always at the bottom of the room. **Rooms fill the screen however you hold the phone:** a room gets extra floor (wider when the screen is wide, longer when it is tall) so nothing is left empty.
+- **A park laid out like a real zoo.** New games build a bigger park (72 by 58 tiles). **One path circles the whole park in a loop.** The main entrance opens onto a round plaza that sits on the loop, and a lake lies in the heart of the park with a short side path to its dock. Habitats gather around the loop at different places and heights, with the buildings, a garden and little woods scattered between. Every seed gives a different park. **Games you already started keep their old park**, but their buildings can be entered too.
 
 ## Not built yet
 

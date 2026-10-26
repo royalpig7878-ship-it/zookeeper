@@ -2,11 +2,11 @@
 
 ## Walk-in buildings and natural park gaps
 - Habitats all face south (their hatches and gates are on the south fence), so the park is scattered but not rotated. Adding other orientations would need the hatch and gate logic to change.
-- The three rooms are fixed designs with fixed furniture, the same in every zoo.
-- Paths that merge near the plaza can make wide grey patches. The plaza is a plain stone ellipse with benches and hedges, with no fountain or statue.
+- The three rooms are fixed designs with fixed furniture, the same in every zoo. On a very tall or very wide screen the extra floor is empty: the furniture stays where it is.
+- The loop is one ring with branches. There are no second loops, bridges or dead-end trails, and the plaza is a plain stone ellipse with benches and hedges, with no fountain or statue. Where branches merge into the loop the path can look wide.
 - About one seed in ten needs a second attempt to build (checked, not noticeable in play).
 - Old saved games keep their old straight-line park by design. Only new games get the new layout.
-- The park is bigger (64 by 50), so walking is longer. There is no map yet.
+- The park is bigger (72 by 58), so walking is longer. There is no map yet.
 - Entering a building does not pause the animals, the clock or the weather: it is just another part of the park.
 - The clinic is where you report symptoms, but Dr. Shah still comes to the habitat gate for examinations, as before.
 

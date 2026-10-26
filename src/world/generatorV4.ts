@@ -16,8 +16,8 @@ import { HabitatInfo, ObjectKind, Pt, Terrain, ZooLayout } from './types';
  * joining the nearest path so the network branches like a real park. The same seed and attempt number
  * always give the same park.
  */
-export const MAP_W4 = 64;
-export const MAP_H4 = 50;
+export const MAP_W4 = 72;
+export const MAP_H4 = 58;
 const VERSION = 4;
 
 const key = (x: number, y: number) => y * MAP_W4 + x;
@@ -152,61 +152,95 @@ export function generateZoo4(seed: string, attempt: number): ZooLayout {
     }
   };
 
-  // ---- the entrance, at a random place along the south edge, and where the keeper starts
-  const ex = rng.int(14, W - 16);
+  // ---- the loop: one path that circles the whole park, a rounded ring that is a little lumpy so it is not a perfect oval
+  const network = new Set<number>();
+  const joinNetwork = (x: number, y: number) => network.has(key(x, y));
+  const addToNetwork = (tiles: Pt[]) => {
+    for (const t of tiles) {
+      network.add(key(t.x, t.y));
+      for (const [dx, dy] of [[1, 0], [0, 1]]) if (isPath(t.x + dx, t.y + dy)) network.add(key(t.x + dx, t.y + dy));
+    }
+  };
+  const cx = Math.round(W / 2) + rng.int(-2, 2);
+  const cy = Math.round(H / 2) + rng.int(-2, 1);
+  const ringA = W / 2 - 9 + rng.int(-1, 1);
+  const ringB = H / 2 - 8 + rng.int(-1, 1);
+  const expo = 2.6; // between an oval (2) and a rounded rectangle (higher)
+  const phase = rng.next() * Math.PI * 2;
+  const lump = 0.05 + rng.next() * 0.05;
+  const loopPoint = (t: number): Pt => {
+    const c = Math.cos(t);
+    const sn = Math.sin(t);
+    const r = Math.pow(Math.pow(Math.abs(c) / ringA, expo) + Math.pow(Math.abs(sn) / ringB, expo), -1 / expo);
+    const bump = 1 + lump * Math.sin(3 * t + phase) + 0.04 * Math.sin(5 * t + phase * 1.7);
+    return { x: Math.max(6, Math.min(W - 7, Math.round(cx + c * r * bump))), y: Math.max(6, Math.min(H - 10, Math.round(cy + sn * r * bump))) };
+  };
+  const STEPS = 28;
+  const loopPts: Pt[] = [];
+  for (let i = 0; i < STEPS; i++) {
+    const p = loopPoint(Math.PI / 2 + (i / STEPS) * Math.PI * 2); // start at the south, where the entrance is
+    const last = loopPts[loopPts.length - 1];
+    if (!last || dist(p, last) > 0) loopPts.push(p);
+  }
+
+  // ---- the entrance joins the loop at its southern side, and the keeper starts just inside
+  const ex = Math.max(10, Math.min(W - 12, loopPts[0].x + rng.int(-4, 4)));
   const entranceY = H - 4;
   g.add({ kind: 'building_entrance', x: ex - 2, y: entranceY, w: 6, h: 3, solid: true });
   for (let y = entranceY; y < entranceY + 3; y++) g.blocked[y][ex] = g.blocked[y][ex + 1] = false;
   g.fill(ex, entranceY - 1, 2, 1, Terrain.Stone);
   const spawn: Pt = { x: ex, y: H - 6 };
+  g.fill(spawn.x, spawn.y, 2, 2, Terrain.Stone); // the ground where the keeper starts is always open path
 
-  // ---- the plaza: a round stone square somewhere in the middle of the park, which everything is arranged around
-  const hubX = Math.max(18, Math.min(W - 19, ex + rng.int(-9, 9)));
-  const hubY = rng.int(23, 28);
+  // lay the loop, one winding stretch at a time, back round to where it began
+  for (let i = 0; i < loopPts.length; i++) {
+    const from = loopPts[i];
+    const to = loopPts[(i + 1) % loopPts.length];
+    if (from.x === to.x && from.y === to.y) continue;
+    const r = route(from, (x, y) => x === to.x && y === to.y);
+    if (!r) throw new GenerationError('the loop path cannot be completed');
+    lay(r, Terrain.Stone);
+    addToNetwork(r);
+  }
+
+  // ---- the plaza: a round stone forecourt where the entrance meets the loop
+  const hubX = ex;
+  const hubY = Math.min(loopPts[0].y, entranceY - 6) - 1;
   const rx = rng.int(5, 6);
   const ry = 3;
   const plaza: Pt[] = [];
   for (let y = hubY - ry; y <= hubY + ry; y++)
     for (let x = hubX - rx; x <= hubX + rx; x++) {
-      if (((x - hubX) / (rx + 0.5)) ** 2 + ((y - hubY) / (ry + 0.5)) ** 2 <= 1) {
+      if (((x - hubX) / (rx + 0.5)) ** 2 + ((y - hubY) / (ry + 0.5)) ** 2 <= 1 && g.inBounds(x, y) && !g.blocked[y][x]) {
         g.fill(x, y, 1, 1, Terrain.Stone);
         plaza.push({ x, y });
       }
     }
-  const network = new Set<number>(plaza.map((p) => key(p.x, p.y)));
+  addToNetwork(plaza);
+  // the way in: from the entrance straight to the plaza and the loop
+  const trunk = route({ x: ex, y: entranceY - 1 }, joinNetwork);
+  if (!trunk) throw new GenerationError('the entrance cannot reach the loop');
+  lay(trunk, Terrain.Stone);
+  addToNetwork(trunk);
 
-  // ---- habitats: each at its own random spot, none in a row
-  const extras = shuffle(EXTRA_HABITATS, rng).slice(0, 2);
-  const defs: { def: HabitatDef; id: string }[] = shuffle(
-    [{ def: ELEPHANT_HABITAT, id: 'elephant' }, ...extras.map((d) => ({ def: d, id: d.kind }))],
-    rng,
-  );
-  const habitats: HabitatInfo[] = [];
-  const habitatBottoms = new Map<string, number>();
-  for (const { def, id } of defs) {
-    let built: HabitatInfo | null = null;
-    for (let tries = 0; tries < 300 && !built; tries++) {
-      const x = rng.int(3, W - 4 - def.w);
-      const hb = rng.int(def.h + 2, hubY + 6); // the row of the south fence: some stand higher, some lower
-      const hy = hb - def.h + 1;
-      if (hy < 3) continue;
-      // keep clear of the plaza and leave a grass margin, and room below the gate for its path and sign
-      if (!rectFree(x, hy, def.w, def.h + 3, 2)) continue;
-      built = buildHabitat(g, def, id, x, hb, hb + 2);
-      habitatBottoms.set(id, hb);
-    }
-    if (!built) throw new GenerationError(`no room for the ${id} habitat`);
-    habitats.push(built);
-  }
-
-  // ---- the pond: a rounded pool on the shore of a corner of the park, with a dock facing the paths
-  const pondW = rng.int(10, 13);
+  // ---- the pond: a rounded lake near the middle of the park, with a dock on a short branch of the loop
+  const pondW = rng.int(10, 12);
   const pondH = rng.int(7, 8);
   let pond: { x: number; y: number } | null = null;
-  for (let tries = 0; tries < 200 && !pond; tries++) {
+  let pondScore = Infinity;
+  for (let tries = 0; tries < 300; tries++) {
     const x = rng.int(3, W - 4 - pondW);
-    const y = rng.int(hubY + 4, H - 6 - pondH);
-    if (rectFree(x, y, pondW, pondH, 3) && Math.hypot(x + pondW / 2 - hubX, y - hubY) > 9) pond = { x, y };
+    const y = rng.int(8, H - 8 - pondH);
+    if (!rectFree(x, y, pondW, pondH, 2) || Math.hypot(x + pondW / 2 - hubX, y - hubY) < 11) continue;
+    // the dock faces the middle of the park: keep a corridor clear in front of it for its path
+    const westSide = x + pondW / 2 < cx;
+    if (!rectFree(westSide ? x + pondW : x - 8, y + 1, 8, 6, 0)) continue;
+    // a lake in the heart of the park, the loop round it: take the fitting spot nearest the middle
+    const score = Math.hypot(x + pondW / 2 - cx, y + pondH / 2 - cy) + rng.next() * 6;
+    if (score < pondScore) {
+      pondScore = score;
+      pond = { x, y };
+    }
   }
   if (!pond) throw new GenerationError('no room for the pond');
   const px0 = pond.x;
@@ -219,7 +253,7 @@ export function generateZoo4(seed: string, attempt: number): ZooLayout {
   }
   for (let y = pondTop + 1; y < pondTop + pondH - 1; y++)
     for (let x = px0 + 1; x < px0 + pondW - 1; x++) if (g.terrain[y][x] === Terrain.Water) g.blocked[y][x] = true;
-  const pondWest = px0 + pondW / 2 < hubX; // the dock faces the plaza
+  const pondWest = px0 + pondW / 2 < cx; // the dock faces the middle of the park
   const dockY = pondTop + 3;
   let dock: Pt;
   let photoSpot: Pt;
@@ -239,14 +273,49 @@ export function generateZoo4(seed: string, attempt: number): ZooLayout {
     dockTrailStart = { x: px0 - 3, y: dockY };
   }
 
+  // ---- habitats: each at its own random spot, none in a row
+  const extras = shuffle(EXTRA_HABITATS, rng).slice(0, 2);
+  const defs: { def: HabitatDef; id: string }[] = shuffle(
+    [{ def: ELEPHANT_HABITAT, id: 'elephant' }, ...extras.map((d) => ({ def: d, id: d.kind }))],
+    rng,
+  );
+  defs.sort((a, b) => b.def.w * b.def.h - a.def.w * a.def.h); // the biggest first: it is the hardest to fit
+  const habitats: HabitatInfo[] = [];
+  const habitatBottoms = new Map<string, number>();
+  /** how far a spot is from the nearest bit of the loop */
+  const loopTiles: Pt[] = [...network].map((k) => ({ x: k % W, y: Math.floor(k / W) }));
+  const nearLoop = (x: number, y: number) => {
+    let best = Infinity;
+    for (const t of loopTiles) best = Math.min(best, Math.abs(t.x - x) + Math.abs(t.y - y));
+    return best;
+  };
+  for (const { def, id } of defs) {
+    // Try many spots; of the ones that fit, take the one that sits nearest the loop (plus a little chance), so the
+    // habitats gather around the loop at different places and the middle of the park stays open for the pond and plaza.
+    let best: { x: number; hb: number; score: number } | null = null;
+    for (let tries = 0; tries < 400; tries++) {
+      const x = rng.int(3, W - 4 - def.w);
+      const hb = rng.int(def.h + 2, H - 10); // the row of the south fence: some stand higher, some lower
+      const hy = hb - def.h + 1;
+      if (hy < 3) continue;
+      if (!rectFree(x, hy, def.w, def.h + 3, 1)) continue;
+      const score = nearLoop(x + def.w / 2, hy + def.h / 2) + rng.next() * 14;
+      if (!best || score < best.score) best = { x, hb, score };
+    }
+    if (!best) throw new GenerationError(`no room for the ${id} habitat`);
+    const built = buildHabitat(g, def, id, best.x, best.hb, best.hb + 2);
+    habitatBottoms.set(id, best.hb);
+    habitats.push(built);
+  }
+
   // ---- a flower garden somewhere else
   const gardenW = 11;
   const gardenH = pondH;
   let garden: { x: number; y: number } | null = null;
-  for (let tries = 0; tries < 200 && !garden; tries++) {
+  for (let tries = 0; tries < 400 && !garden; tries++) {
     const x = rng.int(3, W - 4 - gardenW);
-    const y = rng.int(hubY - 6, H - 8 - gardenH);
-    if (rectFree(x, y, gardenW, gardenH, 2)) garden = { x, y };
+    const y = rng.int(6, H - 8 - gardenH);
+    if (rectFree(x, y, gardenW, gardenH, 1)) garden = { x, y };
   }
   if (!garden) throw new GenerationError('no room for the garden');
   const gardenX = garden.x;
@@ -267,7 +336,7 @@ export function generateZoo4(seed: string, attempt: number): ZooLayout {
     let spot: { x: number; y: number } | null = null;
     for (let tries = 0; tries < 400 && !spot; tries++) {
       const x = rng.int(3, W - 4 - def.w);
-      const by = rng.int(hubY - 9, H - 12);
+      const by = rng.int(6, H - 12);
       // the door row is by + h; leave grass in front of it for the path
       if (!rectFree(x, by, def.w, def.h + 2, 1)) continue;
       if (placed.some((p) => Math.abs(p.x - x) < 3 && Math.abs(p.y - by) < 3)) continue;
@@ -280,31 +349,7 @@ export function generateZoo4(seed: string, attempt: number): ZooLayout {
     placed.push({ id, x: spot.x, y: spot.y });
   }
 
-  // ---- the paths: a winding trunk from the entrance, then a branch to everything else, each joining the nearest path
-  const joinNetwork = (x: number, y: number) => network.has(key(x, y));
-  const addToNetwork = (tiles: Pt[]) => {
-    for (const t of tiles) {
-      network.add(key(t.x, t.y));
-      for (const [dx, dy] of [[1, 0], [0, 1]]) if (isPath(t.x + dx, t.y + dy)) network.add(key(t.x + dx, t.y + dy));
-    }
-  };
-  // the trunk bends through a random waypoint on its way up
-  let wp: Pt | null = null;
-  for (let tries = 0; tries < 40 && !wp; tries++) {
-    const c = { x: Math.max(6, Math.min(W - 7, Math.round((ex + hubX) / 2) + rng.int(-9, 9))), y: Math.round((entranceY + hubY) / 2) + rng.int(-3, 3) };
-    if (g.free(c.x, c.y) && g.free(c.x + 1, c.y) && g.free(c.x, c.y + 1)) wp = c;
-  }
-  if (!wp) throw new GenerationError('no waypoint for the entrance path');
-  const bend = wp;
-  const first = route({ x: ex, y: entranceY - 1 }, (x, y) => x === bend.x && y === bend.y);
-  if (!first) throw new GenerationError('the entrance path cannot reach its bend');
-  lay(first, Terrain.Stone);
-  addToNetwork(first);
-  const second = route(bend, joinNetwork);
-  if (!second) throw new GenerationError('the entrance path cannot reach the plaza');
-  lay(second, Terrain.Stone);
-  addToNetwork(second);
-
+  // ---- the paths: a branch from the loop to every habitat gate, building door and the dock
   const branch = (from: Pt, ground: Terrain, what: string) => {
     const r = route(from, joinNetwork);
     if (!r) throw new GenerationError(`no path for ${what}`);
@@ -382,7 +427,10 @@ export function generateZoo4(seed: string, attempt: number): ZooLayout {
   if (!welcome) throw new GenerationError('no welcome sign');
   if (!g.prop('sign', pondSign.x, pondSign.y)) {
     let alt: Pt | null = null;
-    for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, -1], [0, 2], [0, -2], [2, 0], [-2, 0], [2, 1], [-2, 1]]) if (!alt && g.prop('sign', pondSign.x + dx, pondSign.y + dy)) alt = { x: pondSign.x + dx, y: pondSign.y + dy };
+    const offsets: [number, number][] = [];
+    for (let dx = -5; dx <= 5; dx++) for (let dy = -5; dy <= 5; dy++) offsets.push([dx, dy]);
+    offsets.sort((u, v) => Math.abs(u[0]) + Math.abs(u[1]) - Math.abs(v[0]) - Math.abs(v[1]));
+    for (const [dx, dy] of offsets) if (!alt && g.prop('sign', pondSign.x + dx, pondSign.y + dy)) alt = { x: pondSign.x + dx, y: pondSign.y + dy };
     if (!alt) throw new GenerationError('no pond sign');
     pondSign = alt;
   }
@@ -393,6 +441,7 @@ export function generateZoo4(seed: string, attempt: number): ZooLayout {
   for (let a = 0; a < 48 && hedgeTiles.length < 14; a++) {
     const ang = (a / 48) * Math.PI * 2;
     const p = { x: Math.round(hubX + Math.cos(ang) * (rx + 1.4)), y: Math.round(hubY + Math.sin(ang) * (ry + 1.6)) };
+    if (dist(p, spawn) < 4) continue;
     if (!hedgeTiles.some((h) => h.x === p.x && h.y === p.y) && g.prop('hedge', p.x, p.y)) hedgeTiles.push(p);
   }
   if (hedgeTiles.length < 6) throw new GenerationError('no room for hedges');
@@ -507,7 +556,7 @@ export function generateZoo4(seed: string, attempt: number): ZooLayout {
     }
   };
   patch(Terrain.Meadow, 12, 3, H - 4);
-  patch(Terrain.TallGrass, 22, hubY - 4, H - 6);
+  patch(Terrain.TallGrass, 22, 10, H - 6);
 
   applyFenceVariants(g);
 
