@@ -22,10 +22,12 @@ export interface Settings {
   bigControls: boolean;
   /** show numbers on the animal bars, so colour is never the only information */
   showNumbers: boolean;
+  /** hide the clock, goal and top buttons (the pause button stays), for more room to see the park */
+  hudMinimized: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  music: 6, sfx: 8, muted: false, reducedMotion: false, leftHanded: false, bigControls: false, showNumbers: true,
+  music: 6, sfx: 8, muted: false, reducedMotion: false, leftHanded: false, bigControls: false, showNumbers: true, hudMinimized: false,
 };
 
 const clampStep = (v: unknown, fallback: number) =>
@@ -40,6 +42,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     music: clampStep(r.music, d.music), sfx: clampStep(r.sfx, d.sfx), muted: bool(r.muted, d.muted),
     reducedMotion: bool(r.reducedMotion, d.reducedMotion), leftHanded: bool(r.leftHanded, d.leftHanded),
     bigControls: bool(r.bigControls, d.bigControls), showNumbers: bool(r.showNumbers, d.showNumbers),
+    hudMinimized: bool(r.hudMinimized, d.hudMinimized),
   };
 }
 
@@ -70,7 +73,7 @@ export function volumeOf(step: number, muted: boolean): number {
 
 /** Button ids used by the settings sheet. */
 export const SETTING_ACTIONS = [
-  'set-music-down', 'set-music-up', 'set-sfx-down', 'set-sfx-up', 'set-mute', 'set-motion', 'set-hand', 'set-big', 'set-numbers', 'set-test', 'set-reset',
+  'set-music-down', 'set-music-up', 'set-sfx-down', 'set-sfx-up', 'set-mute', 'set-motion', 'set-hand', 'set-big', 'set-numbers', 'set-hud', 'set-test', 'set-reset',
 ] as const;
 
 /** Apply one button press to the settings. Returns the new settings, or null if the id is not a settings button. */
@@ -85,6 +88,7 @@ export function applySettingAction(s: Settings, id: string): Settings | null {
     case 'set-hand': return { ...s, leftHanded: !s.leftHanded };
     case 'set-big': return { ...s, bigControls: !s.bigControls };
     case 'set-numbers': return { ...s, showNumbers: !s.showNumbers };
+    case 'set-hud': return { ...s, hudMinimized: !s.hudMinimized };
     case 'set-test': return { ...s, muted: false, sfx: Math.max(s.sfx, 1) }; // the scene plays the sound
     case 'set-reset': return { ...DEFAULT_SETTINGS };
     default: return null;

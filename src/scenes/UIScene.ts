@@ -53,6 +53,8 @@ export class UIScene extends Phaser.Scene {
 
   private actionBtn!: Phaser.GameObjects.Container;
   private runBtn!: Phaser.GameObjects.Container;
+  private hudToggle!: Phaser.GameObjects.Container;
+  private hudToggleLabel: Phaser.GameObjects.Text | undefined;
   private runBg!: Phaser.GameObjects.Graphics;
   private actionLabel!: Phaser.GameObjects.Text;
   private actionBg!: Phaser.GameObjects.Graphics;
@@ -159,6 +161,7 @@ export class UIScene extends Phaser.Scene {
     });
     kb.on('keydown-B', () => !this.blockedByOther() && this.game.events.emit('ui:open', 'bag'));
     kb.on('keydown-T', () => !this.blockedByOther() && this.game.events.emit('ui:open', 'tasks'));
+    kb.on('keydown-H', () => !this.blockedByOther() && this.toggleHud());
     kb.on('keydown-J', () => !this.blockedByOther() && this.game.events.emit('ui:open', 'career'));
     kb.on('keydown-M', () => (this.map.isOpen ? this.closeMap() : !this.blockedByOther() && this.game.events.emit('ui:open', 'map')));
 
@@ -217,14 +220,18 @@ export class UIScene extends Phaser.Scene {
     if (this.stickPointerId === null) this.restStick(); // never drop a finger that is already on the joystick
     // The action button goes on the side away from the joystick, and both stay out of the notch and corners.
     this.actionBtn.setScale(big ? 1.25 : 1);
-    this.actionBtn.setPosition(lefty ? m + sf.left + 90 * (big ? 1.25 : 1) : width - m - sf.right - 90 * (big ? 1.25 : 1), height - m - sf.bottom - 50 * (big ? 1.25 : 1));
+    // The RUN button sits in the corner; the action button pops up above it when there is something to do.
     const bigK = big ? 1.25 : 1;
+    const colX = lefty ? m + sf.left + 90 * bigK : width - m - sf.right - 90 * bigK;
     this.runBtn.setScale(bigK);
-    this.runBtn.setPosition(this.actionBtn.x, this.actionBtn.y - (50 + 12 + 42) * bigK);
+    this.runBtn.setPosition(colX, height - m - sf.bottom - 42 * bigK);
+    this.actionBtn.setPosition(colX, this.runBtn.y - (42 + 12 + 50) * bigK);
     this.menuBtn.setPosition(width - m - sf.right - 28, m + sf.top + 28);
+    this.hudToggle.setPosition(width - m - sf.right - 28, m + sf.top + 28 + 50);
     this.tasksBtn.setPosition(width - m - sf.right - 28 - 64, m + sf.top + 28);
     this.bagBtn.setPosition(width - m - sf.right - 28 - 128, m + sf.top + 28);
     this.mapBtn.setPosition(width - m - sf.right - 28 - 192, m + sf.top + 28);
+    this.applyHud();
     this.map.layout();
     this.clockText.setPosition(m + sf.left, m + sf.top);
     this.placeHud();
@@ -405,7 +412,7 @@ export class UIScene extends Phaser.Scene {
 
   /** The current story objective, in a small box under the clock. Empty text hides it. */
   private setObjective(text: string) {
-    this.objectiveText.setText(text ? `Goal: ${text}` : '').setVisible(text.length > 0);
+    this.objectiveText.setText(text ? `Goal: ${text}` : '').setVisible(text.length > 0 && !settings.get().hudMinimized);
     this.placeHud();
   }
 
@@ -414,7 +421,7 @@ export class UIScene extends Phaser.Scene {
     const m = this.margin;
     const { width } = this.scale;
     const x = m + this.safe.left;
-    const y = m + this.safe.top + 58;
+    const y = m + this.safe.top + (settings.get().hudMinimized ? 0 : 58);
     this.statusText.setPosition(x, y);
     const below = this.statusText.visible ? this.statusText.height + 6 : 0;
     this.objectiveText.setWordWrapWidth(Math.max(150, Math.min(320, width - 2 * m - 275 - this.safe.left - this.safe.right)));
@@ -486,6 +493,26 @@ export class UIScene extends Phaser.Scene {
   private buildMenuButton() {
     const btn = makeButton(this, 0, 0, 56, 56, 'II', () => this.setPaused(true), { fontSize: 22, color: 0x4a5a8a });
     this.menuBtn = btn.container.setDepth(3);
+    const toggle = makeButton(this, 0, 0, 56, 36, settings.get().hudMinimized ? '+' : '-', () => this.toggleHud(), { fontSize: 22, color: 0x4a5a8a });
+    this.hudToggle = toggle.container.setDepth(3);
+    this.hudToggleLabel = toggle.container.list.find((o) => o instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text | undefined;
+  }
+
+  /** Minimise or restore the top bar: the clock, goal and top buttons. The pause button and this one stay. */
+  private toggleHud() {
+    settings.set({ ...settings.get(), hudMinimized: !settings.get().hudMinimized });
+    this.applyHud();
+  }
+
+  private applyHud() {
+    const min = settings.get().hudMinimized;
+    this.clockText.setVisible(!min);
+    this.tasksBtn.setVisible(!min);
+    this.bagBtn.setVisible(!min);
+    this.mapBtn.setVisible(!min);
+    this.objectiveText.setVisible(!min && this.objectiveText.text.length > 0);
+    this.hudToggleLabel?.setText(min ? '+' : '-');
+    this.placeHud();
   }
 
   private buildDialog() {

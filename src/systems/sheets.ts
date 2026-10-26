@@ -302,6 +302,7 @@ export function settingsSheet(s: Settings): SheetData {
       '#COMFORT',
       `Reduced motion: ${onOff(s.reducedMotion)} (no falling rain, no camera smoothing)`,
       `Numbers on animal bars: ${onOff(s.showNumbers)} (so colour is never the only clue)`,
+      `Minimised top bar: ${onOff(s.hudMinimized)} (hides the clock, goal and top buttons. The small button under the pause button, or the H key, does the same)`,
     ],
     buttons: [
       { id: 'set-music-down', label: 'Music -' },
@@ -313,6 +314,7 @@ export function settingsSheet(s: Settings): SheetData {
       { id: 'set-big', label: `Big controls: ${onOff(s.bigControls)}`, color: 0x4a5a8a },
       { id: 'set-motion', label: `Calm motion: ${onOff(s.reducedMotion)}`, color: 0x4a5a8a },
       { id: 'set-numbers', label: `Numbers: ${onOff(s.showNumbers)}`, color: 0x4a5a8a },
+      { id: 'set-hud', label: `Small top bar: ${onOff(s.hudMinimized)}`, color: 0x4a5a8a },
       { id: 'set-test', label: 'Test sound', color: 0x3f8f58 },
       { id: 'set-reset', label: 'Reset all', color: 0x97402f },
       { id: 'close', label: 'Close' },
