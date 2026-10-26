@@ -52,6 +52,9 @@ function start(tries = 0) {
     w.__game = game; // for testing in the browser
     w.__settings = settings;
     w.__audio = audio;
+    void import('./dev/spriteSheet').then((m) => {
+      w.__sheet = (prefix?: string, scale?: number, cols?: number) => m.showSheet(game, prefix, scale, cols);
+    });
   }
 }
 

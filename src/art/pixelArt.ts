@@ -58,19 +58,19 @@ export const PAL = {
   black: '#1b1b1b',
 };
 
-type Ctx = CanvasRenderingContext2D;
+export type Ctx = CanvasRenderingContext2D;
 
-function rect(c: Ctx, color: string, x: number, y: number, w: number, h: number) {
+export function rect(c: Ctx, color: string, x: number, y: number, w: number, h: number) {
   c.fillStyle = color;
   c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
 }
 
-function outlined(c: Ctx, fill: string, x: number, y: number, w: number, h: number) {
+export function outlined(c: Ctx, fill: string, x: number, y: number, w: number, h: number) {
   rect(c, PAL.outline, x, y, w, h);
   rect(c, fill, x + 1, y + 1, w - 2, h - 2);
 }
 
-function makeCanvas(w: number, h: number): [HTMLCanvasElement, Ctx] {
+export function makeCanvas(w: number, h: number): [HTMLCanvasElement, Ctx] {
   const cv = document.createElement('canvas');
   cv.width = w;
   cv.height = h;
@@ -79,7 +79,7 @@ function makeCanvas(w: number, h: number): [HTMLCanvasElement, Ctx] {
   return [cv, c];
 }
 
-function addCanvas(scene: Phaser.Scene, key: string, cv: HTMLCanvasElement) {
+export function addCanvas(scene: Phaser.Scene, key: string, cv: HTMLCanvasElement) {
   if (scene.textures.exists(key)) scene.textures.remove(key);
   scene.textures.addCanvas(key, cv);
 }
@@ -374,14 +374,14 @@ function makeEntrance(scene: Phaser.Scene) {
 }
 
 // ---------------------------------------------------------------- player
-export const PLAYER_FRAMES = 3;
+export const PLAYER_FRAMES = 4; // 0 stand, 1 and 2 steps, 3 the breathing-in stand
 
 /** What a person looks like: the keeper and the staff share one drawing with different colours. */
-interface Look {
+export interface Look {
   skin: string; hair: string; shirt: string; shirtDark: string; pants: string; pantsDark: string; badge: string; cap: string | null;
 }
 
-const KEEPER_LOOK: Look = {
+export const KEEPER_LOOK: Look = {
   skin: PAL.skin, hair: PAL.hair, shirt: PAL.shirt, shirtDark: PAL.shirtDark, pants: PAL.pants, pantsDark: PAL.pantsDark, badge: PAL.gold, cap: '#d8d0b8',
 };
 
@@ -394,7 +394,7 @@ export const NPC_LOOKS: Record<string, Look> = {
 };
 
 
-function drawPlayerFrame(c: Ctx, dir: 'down' | 'up' | 'side', frame: number, look: Look = KEEPER_LOOK) {
+export function drawPlayerFrame(c: Ctx, dir: 'down' | 'up' | 'side', frame: number, look: Look = KEEPER_LOOK) {
   const bob = frame === 0 ? 0 : 1;
   const step = frame === 1 ? -1 : frame === 2 ? 1 : 0;
   rect(c, 'rgba(0,0,0,0.2)', 7, 42, 18, 5); // shadow

@@ -3,6 +3,10 @@ import {
   AUTOSAVE_SECONDS, CAMERA_ZOOM, GAME_MINUTES_PER_SECOND, PLAYER, SAVE_VERSION, TILE,
 } from '../config/constants';
 import { BOAT_SIZE, MOWER_SIZE } from '../art/pixelArt';
+import { KeeperAnim } from '../anim/keeper';
+import { PlayerAction, JobKind, actionForJob } from '../anim/clips';
+import { FxLayer } from '../fx/fxLayer';
+import type { FxKind } from '../fx/particles';
 import { CHORES, ChoreDef } from '../data/chores';
 import { BOAT, MOWER, cutGrassAt, drainBattery, lawnTiles, mownTile, regrow, tileKey } from '../systems/grounds';
 import { bondMilestone, gainFamiliarity, newMemory } from '../animals/memory';
@@ -84,6 +88,10 @@ interface TimedJob {
   total: number;
   remaining: number;
   done: () => void;
+  /** the pose shown while working, and the effect played while it runs and when it ends */
+  pose: PlayerAction;
+  fx?: FxKind;
+  fxClock: number;
 }
 
 export class GameScene extends Phaser.Scene {
@@ -122,6 +130,9 @@ export class GameScene extends Phaser.Scene {
   private pileViews = new Map<string, Phaser.GameObjects.Image>();
   private interactables: Interactable[] = [];
   private job: TimedJob | null = null;
+  private keeperAnim!: KeeperAnim;
+  private fx!: FxLayer;
+  private dustClock = 0;
   private lastMinute = -1;
   private lastDaylight = -1;
   private shiftOverToldToday = false;
@@ -563,7 +574,11 @@ export class GameScene extends Phaser.Scene {
       this.facing = saved?.facing ?? 'up';
     }
     this.player = this.add.image(this.px, this.py, 'player_down_0').setOrigin(0.5, 44 / 48);
-    this.updatePlayerSprite(false);
+    this.keeperAnim = new KeeperAnim((k) => this.textures.exists(k), (m) => console.warn(m));
+    this.fx = new FxLayer(this);
+    this.fx.decorative = !settings.get().reducedMotion;
+    this.events.once('shutdown', () => this.fx.destroy());
+    this.updatePlayerSprite(false, 0);
   }
 
   private applyZoom() {
@@ -614,10 +629,18 @@ export class GameScene extends Phaser.Scene {
       else {
         mx = my = 0;
         this.job.remaining -= dt;
+        this.job.fxClock += dt;
+        if (this.job.fx && this.job.fxClock > 0.32) {
+          this.job.fxClock = 0;
+          const reach = this.facing === 'left' ? -12 : this.facing === 'right' ? 12 : 0;
+          const lift = this.facing === 'up' ? -14 : this.facing === 'down' ? 4 : -3;
+          this.fx.burst(this.job.fx, this.px + reach, this.py + lift, 2);
+        }
         this.game.events.emit('ui:progress', { label: this.job.label, fraction: 1 - Math.max(0, this.job.remaining) / this.job.total });
         if (this.job.remaining <= 0) {
           const done = this.job.done;
           this.game.events.emit('sfx', 'work');
+          this.fx.burst('done', this.px, this.py - 30, 4);
           this.job = null;
           this.game.events.emit('ui:progress', null);
           done();
@@ -647,7 +670,8 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.walkTime = 0;
     }
-    this.updatePlayerSprite(moving);
+    this.updatePlayerSprite(moving, dt);
+    this.fx.update(dt);
     if (this.mode !== 'walk') this.updateVehicle(dt, moving);
 
     for (const view of this.animals) {
@@ -719,7 +743,7 @@ export class GameScene extends Phaser.Scene {
     return this.layoutData.terrain[ty]?.[tx] === Terrain.Water;
   }
 
-  private updatePlayerSprite(moving: boolean) {
+  private updatePlayerSprite(moving: boolean, dt: number) {
     const dir = this.facing === 'left' || this.facing === 'right' ? 'side' : this.facing;
     if (this.mode === 'mower') {
       this.player.setTexture(`mower_${dir}_${moving ? Math.floor(this.walkTime * 14) % 2 : 0}`);
@@ -730,10 +754,21 @@ export class GameScene extends Phaser.Scene {
       const s = sideways ? BOAT_SIZE.side : BOAT_SIZE.vertical;
       this.player.setOrigin(0.5, s.centreY / s.h);
     } else {
-      const seq = [1, 0, 2, 0];
-      const frame = moving ? seq[Math.floor(this.walkTime * 8) % 4] : 0;
-      this.player.setTexture(`player_${dir}_${frame}`);
+      const carrying = this.inventory.some((s) => ITEMS[s.id]?.category === 'food');
+      const { frame, flip } = this.keeperAnim.update(dt, { moving, carrying, facing: this.facing, action: this.job?.pose ?? null });
+      this.player.setTexture(frame);
       this.player.setOrigin(0.5, 44 / 48);
+      this.player.setFlipX(flip);
+      if (moving) {
+        this.dustClock += dt;
+        if (this.dustClock > 0.28) {
+          this.dustClock = 0;
+          this.fx.burst('dust', this.px, this.py - 1, 1, 0, 0, true);
+        }
+      }
+      this.player.setPosition(this.px, this.py);
+      this.player.setDepth(this.py);
+      return;
     }
     this.player.setFlipX(this.facing === 'left');
     this.player.setPosition(this.px, this.py);
@@ -1019,9 +1054,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Start a timed job. Moving away cancels it. */
-  private startJob(label: string, seconds: number, done: () => void) {
+  private startJob(label: string, seconds: number, done: () => void, kind: JobKind = 'chore', tool?: string, fx?: FxKind) {
     if (this.job) return;
-    this.job = { label, total: seconds, remaining: seconds, done };
+    this.job = { label, total: seconds, remaining: seconds, done, pose: actionForJob(kind, tool), fx, fxClock: 0 };
     this.game.events.emit('ui:progress', { label, fraction: 0 });
   }
 
@@ -1150,7 +1185,7 @@ export class GameScene extends Phaser.Scene {
     this.startJob(`Gathering ${name}...`, 0.8, () => {
       addItem(this.inventory, id, 1);
       this.toast(`+1 ${name} (carrying ${countItem(this.inventory, id)})`);
-    });
+    }, 'gather', undefined, 'crumbs');
   }
 
   /** Prepare one species' meal at the counter. Explains exactly what is missing. */
@@ -1179,7 +1214,7 @@ export class GameScene extends Phaser.Scene {
         this.taskEvent('meal-prepared');
       }
       else this.save(false);
-    });
+    }, 'cook', undefined, 'crumbs');
   }
 
   /** Spread care across everyone in a habitat (the bond grows for each animal that benefits). */
@@ -1220,7 +1255,7 @@ export class GameScene extends Phaser.Scene {
       this.fedToday.add(habitatId);
       this.bondHabitat(habitatId, habitatId === 'elephant' ? 3 : 2);
       this.taskEvent(habitatId === 'elephant' ? 'feeder-filled' : `fed:${habitatId}`);
-    });
+    }, 'feed', undefined, 'crumbs');
   }
 
   private actWater(habitatId: string) {
@@ -1243,7 +1278,7 @@ export class GameScene extends Phaser.Scene {
       }
       this.bondHabitat(habitatId, habitatId === 'elephant' ? 3 : 2);
       this.taskEvent(habitatId === 'elephant' ? 'water-filled' : `watered:${habitatId}`);
-    });
+    }, 'water', undefined, 'splash');
   }
 
   // ------------------------------------------------------------ enrichment
@@ -1274,7 +1309,7 @@ export class GameScene extends Phaser.Scene {
       this.enrichedToday.add(habitatId);
       this.toast(`The ${rt.species.group} have something new`);
       this.save(false);
-    });
+    }, 'enrich');
   }
 
   private placeEnrichment(rt: HabitatRuntime, e: Enrichment) {
@@ -1322,10 +1357,11 @@ export class GameScene extends Phaser.Scene {
       const kit = ['trowel', 'hedge_trimmer', 'watering_can', 'toolkit'].includes(def.tool) ? 'grounds kit' : 'tools';
       return this.say('You need a tool', `You need the ${ITEMS[def.tool].name.toLowerCase()} for this. Collect the ${kit} from the maintenance shed.`);
     }
+    const choreFx: FxKind = def.tool === 'shovel' || def.tool === 'trowel' ? 'dirt' : def.tool === 'hose' || def.tool === 'watering_can' ? 'splash' : def.tool === 'hedge_trimmer' ? 'leaves' : 'dust';
     this.startJob(def.progress, def.seconds, () => {
       this.removePile(id);
       this.finishChore(pile);
-    });
+    }, 'chore', def.tool, choreFx);
   }
 
   /** What happens when a job is finished: the shared toast and task, plus anything special about this kind. */
@@ -1991,7 +2027,7 @@ export class GameScene extends Phaser.Scene {
     this.startJob('Helping Dr. Shah...', 3, () => {
       if (!examine(c, this.clock.day, true)) return;
       this.finishExam(c, true);
-    });
+    }, 'assist');
   }
 
   private finishExam(c: MedicalCase, assisted: boolean) {
@@ -2032,7 +2068,7 @@ export class GameScene extends Phaser.Scene {
       this.bond(view, 1);
       this.syncMedical();
       this.save(false);
-    });
+    }, 'dose', undefined, 'spark');
   }
 
   private checkCase() {
