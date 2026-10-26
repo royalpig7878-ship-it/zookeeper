@@ -277,8 +277,9 @@ export class StaffRoomScene extends Phaser.Scene {
     this.say('Your locker', 'Inside: an inspection notebook and a first-aid kit, both with your name on them.', ...note.pages);
   }
 
-  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'terminal') {
+  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'terminal' | 'map') {
     if (this.registry.get('modal') || this.leaving) return;
+    if (kind === 'map') return this.game.events.emit('ui:toast', 'The map is for outdoors. Leave the staff room to see the park.');
     if (kind === 'bag') this.sheet(bagSheet(this.inventory));
     else if (kind === 'terminal') this.sheet(reportSheet(this.tasks, this.clock, `Care Terminal - Day ${this.clock.day}`, [{ id: 'end-shift', label: 'End Shift', color: 0x4f78b0 }], [], storyLines(this.history, this.flags), weatherLines(weatherFor(this.seed, this.clock.day))));
     else this.sheet(reportSheet(this.tasks, this.clock, undefined, [], [], storyLines(this.history, this.flags), weatherLines(weatherFor(this.seed, this.clock.day))));

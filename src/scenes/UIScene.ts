@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SheetData, SheetPanel } from '../ui/sheet';
+import { MapData, MapPanel } from '../ui/mapPanel';
 import { settings } from '../core/settingsInstance';
 import { Insets, readSafeArea } from '../core/safeArea';
 import { settingsSheet } from '../systems/sheets';
@@ -85,6 +86,8 @@ export class UIScene extends Phaser.Scene {
   private objectiveText!: Phaser.GameObjects.Text;
   private tasksBtn!: Phaser.GameObjects.Container;
   private bagBtn!: Phaser.GameObjects.Container;
+  private mapBtn!: Phaser.GameObjects.Container;
+  private map!: MapPanel;
   private sheet!: SheetPanel;
   private progressGfx!: Phaser.GameObjects.Graphics;
   private progressText!: Phaser.GameObjects.Text;
@@ -145,12 +148,14 @@ export class UIScene extends Phaser.Scene {
     kb.on('keydown-SPACE', this.onActionKey, this);
     kb.on('keydown-ENTER', this.onActionKey, this);
     kb.on('keydown-ESC', () => {
-      if (this.sheet.isOpen) this.closeSheet();
+      if (this.map.isOpen) this.closeMap();
+      else if (this.sheet.isOpen) this.closeSheet();
       else if (this.inspectData) this.closeInspect();
       else this.setPaused(!this.paused);
     });
     kb.on('keydown-B', () => !this.blockedByOther() && this.game.events.emit('ui:open', 'bag'));
     kb.on('keydown-T', () => !this.blockedByOther() && this.game.events.emit('ui:open', 'tasks'));
+    kb.on('keydown-M', () => (this.map.isOpen ? this.closeMap() : !this.blockedByOther() && this.game.events.emit('ui:open', 'map')));
 
     const ev = this.game.events;
     ev.on('ui:context', this.setContext, this);
@@ -160,6 +165,7 @@ export class UIScene extends Phaser.Scene {
     ev.on('ui:time', this.setTime, this);
     ev.on('ui:daylight', this.setDaylight, this);
     ev.on('ui:progress', this.setProgress, this);
+    ev.on('ui:map', this.openMap, this);
     ev.on('ui:sheet', this.openSheet, this);
     ev.on('ui:sheet-close', this.closeSheet, this);
     ev.on('ui:fade', this.runFade, this);
@@ -177,6 +183,7 @@ export class UIScene extends Phaser.Scene {
       ev.off('ui:time', this.setTime, this);
       ev.off('ui:daylight', this.setDaylight, this);
       ev.off('ui:progress', this.setProgress, this);
+      ev.off('ui:map', this.openMap, this);
       ev.off('ui:sheet', this.openSheet, this);
       ev.off('ui:sheet-close', this.closeSheet, this);
       ev.off('ui:fade', this.runFade, this);
@@ -209,6 +216,8 @@ export class UIScene extends Phaser.Scene {
     this.menuBtn.setPosition(width - m - sf.right - 28, m + sf.top + 28);
     this.tasksBtn.setPosition(width - m - sf.right - 28 - 64, m + sf.top + 28);
     this.bagBtn.setPosition(width - m - sf.right - 28 - 128, m + sf.top + 28);
+    this.mapBtn.setPosition(width - m - sf.right - 28 - 192, m + sf.top + 28);
+    this.map.layout();
     this.clockText.setPosition(m + sf.left, m + sf.top);
     this.placeHud();
     this.toast.setPosition(width / 2, m + 56);
@@ -305,6 +314,8 @@ export class UIScene extends Phaser.Scene {
     };
     this.tasksBtn = iconButton('item_tasks', () => this.game.events.emit('ui:open', 'tasks'));
     this.bagBtn = iconButton('item_bag', () => this.game.events.emit('ui:open', 'bag'));
+    this.mapBtn = iconButton('item_map', () => this.game.events.emit('ui:open', 'map'));
+    this.map = new MapPanel(this, () => this.closeMap());
 
     this.progressGfx = this.add.graphics().setDepth(4);
     this.progressText = this.add.text(0, 0, '', {
@@ -367,7 +378,7 @@ export class UIScene extends Phaser.Scene {
     const y = m + this.safe.top + 58;
     this.statusText.setPosition(x, y);
     const below = this.statusText.visible ? this.statusText.height + 6 : 0;
-    this.objectiveText.setWordWrapWidth(Math.max(150, Math.min(320, width - 2 * m - 210 - this.safe.left - this.safe.right)));
+    this.objectiveText.setWordWrapWidth(Math.max(150, Math.min(320, width - 2 * m - 275 - this.safe.left - this.safe.right)));
     this.objectiveText.setPosition(x, y + below);
   }
 
@@ -400,6 +411,17 @@ export class UIScene extends Phaser.Scene {
     this.progressText.setText(this.progress.label).setPosition(width / 2, y - 8);
   }
 
+  private openMap(data: MapData) {
+    this.map.show(data);
+    this.refreshModal();
+  }
+
+  private closeMap() {
+    if (!this.map.isOpen) return;
+    this.map.hide();
+    this.refreshModal();
+  }
+
   private openSheet(data: SheetData) {
     this.sheet.show(data);
     this.refreshModal();
@@ -419,7 +441,7 @@ export class UIScene extends Phaser.Scene {
 
   /** True when something other than the sheet itself should stop the shortcut keys. */
   private blockedByOther() {
-    return this.sheet.isOpen || this.paused || this.dialog !== null || this.inspectData !== null;
+    return this.sheet.isOpen || this.map.isOpen || this.paused || this.dialog !== null || this.inspectData !== null;
   }
 
   private buildMenuButton() {
@@ -450,10 +472,10 @@ export class UIScene extends Phaser.Scene {
   }
 
   private refreshModal() {
-    const blocking = this.dialog !== null || this.paused || this.inspectData !== null || this.sheet.isOpen;
+    const blocking = this.dialog !== null || this.paused || this.inspectData !== null || this.sheet.isOpen || this.map.isOpen;
     this.registry.set('modal', blocking);
     // The world freezes behind the pause menu and behind sheets (report, bag, end of day).
-    this.registry.set('paused', this.paused || this.sheet.isOpen);
+    this.registry.set('paused', this.paused || this.sheet.isOpen || this.map.isOpen);
     this.actionBtn.setVisible(this.context !== null && !blocking);
     if (blocking) this.restStick();
   }

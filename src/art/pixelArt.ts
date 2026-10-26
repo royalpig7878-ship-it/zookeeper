@@ -750,6 +750,14 @@ function makeWorkdayProps(scene: Phaser.Scene) {
       rect(c, '#9a9a8a', 14, y + 1, 6, 1);
     }
   });
+  icon('map', (c) => {
+    outlined(c, '#e8dcb0', 3, 5, 22, 18);
+    rect(c, '#9ad07a', 5, 7, 8, 7); // grass
+    rect(c, '#6ab0e0', 15, 12, 8, 8); // a pond
+    rect(c, '#c8b080', 12, 7, 2, 14); // a path
+    rect(c, '#d8553f', 17, 8, 4, 3); // a building
+    rect(c, '#2a1f2d', 7, 17, 5, 1);
+  });
   icon('bag', (c) => {
     outlined(c, '#a8774a', 4, 9, 20, 16);
     outlined(c, '#8a6038', 7, 5, 14, 6);

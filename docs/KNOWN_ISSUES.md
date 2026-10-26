@@ -1,122 +1,63 @@
 # Known Issues
 
-## Park versions
-- A saved game of generator version 4 is matched to whichever of the two version 4 layouts its animals fit. If a save has no animals to check, it gets the scattered park. Saved jobs (waste, leaves and so on) are checked against the park and dropped if they do not fit, and animals outside their pens are put back. The saved mown-grass list is not checked, so in a mismatched save some grass could look mown or tall in the wrong places.
+What is still open, grouped by what it needs. Items that were fixed have been removed; the git history has them.
 
-## Walk-in buildings and natural park gaps
-- Habitats all face south (their hatches and gates are on the south fence), so the park is scattered but not rotated. Adding other orientations would need the hatch and gate logic to change.
-- The three rooms are fixed designs with fixed furniture, the same in every zoo. On a very tall or very wide screen the extra floor is empty: the furniture stays where it is.
-- The loop is one ring with branches. There are no second loops, bridges or dead-end trails, and the plaza is a plain stone ellipse with benches and hedges, with no fountain or statue. Where branches merge into the loop the path can look wide.
-- About one seed in ten needs a second attempt to build (checked, not noticeable in play).
-- Old saved games keep their old straight-line park by design. Only new games get the new layout.
-- The park is bigger (72 by 58), so walking is longer. There is no map yet.
-- Entering a building does not pause the animals, the clock or the weather: it is just another part of the park.
-- The clinic is where you report symptoms, but Dr. Shah still comes to the habitat gate for examinations, as before.
+## Needs a person to try it (I cannot judge these)
+- **Sound has never been heard by a person.** It is made in the browser with Web Audio (no files). Measured output peaks: about 0.35 for the task chime, 0.15 for a click, 0.19 for the music (1.0 is full scale), after the first version proved far too quiet. Volumes and the music will likely need adjusting by ear. Settings has a **Test sound** button.
+- **Real phones and tablets.** Only emulated browser windows have been used. Not yet tried on a real touchscreen: two fingers at once (joystick plus the action button), dragging long sheets, the safe-area margins on a notched phone (read as zero on a normal screen), and turning the phone with the app on the home screen.
+- **Balance numbers are first guesses** and were never tuned by long play: how often illness starts, recovery days, how much neglect matters (Milestone 8); how often animals conceive (16% on a good day, one pregnancy at a time), gestation and growth days, how fond a pair must be (Milestone 10); how much weather changes thirst; how fast friendships form, flee ranges, how long enrichment holds interest, rest and graze shares (Milestone 7); elephant hunger and energy rates; mower and boat feel and battery length.
 
-## Milestone 11 gaps
-- **The sound has never been heard by a person.** It is made in the browser with Web Audio (no files). I checked that it starts after a touch, plays the effects, limits how many play at once, ramps the rain and schedules the music without errors, and measured the output level (peaks about 0.35 for the task chime, 0.15 for a click and 0.19 for the music, where 1.0 is full scale) after the first version proved far too quiet to hear. I cannot judge how it sounds. Settings has a Test sound button. Volumes and the music are likely to need adjusting by ear. There is no footstep variety per ground type, no mower or boat engine sound, and no music change for story moments.
-- **Art is still first-pass, drawn in code.** Newborns are the adult picture shrunk, the lying-down poses are rough and water does not animate. Real final art would need an artist or licensed assets (record them in the asset catalog).
-- **No large-text option.** Text size is fixed. The settings offer larger controls, left-handed layout, reduced motion, numbers on the bars and sound controls, but not bigger text or a high-contrast theme. Screen readers cannot read a game drawn on a canvas.
-- **No offline play.** There is a web app manifest and icons (so a phone can add it to the home screen full-screen), but no service worker, so it needs a connection to load.
-- The save backup is a single copy from the start of the last day (or the last quit). There is no export or import of saves between devices.
-- Settings are one set per device, not per player.
-- The sheets (settings, report) are scrollable text with buttons; on a very short phone the text area is small.
-- The portrait note ("turn your phone sideways") only shows on narrow portrait screens, and the game does not lock the orientation (a browser cannot always do that).
-- The safe-area margins come from the browser's `env(safe-area-inset-*)`. They were read correctly (zero) on a normal screen but not checked on a real notched phone.
+## Park and buildings
+- **Habitats all face south.** Their gates and hatches are on the south fence, so the park is scattered but its pens are not rotated. Other orientations would need the hatch and gate logic to change.
+- The three rooms (kitchen, shed, clinic) are fixed designs with fixed furniture. On a very tall or wide screen the extra floor is empty.
+- The loop is one ring with branches: no second loops, bridges or dead-end trails. The plaza is a plain stone ellipse with benches and hedges. Where branches join the loop the path can look wide.
+- About one seed in ten needs a second attempt to build (not noticeable in play).
+- The park is big (72 by 58 tiles), so walking is long. The map (button or M) shows where everything is, but has no markers for jobs, no zoom and no way to set a waypoint. On a very small screen some names on the map overlap.
+- Old saved games keep their old parks by design. A saved game of generator version 4 is matched to whichever of the two version 4 layouts its animals fit; with no animals to check it gets the scattered park. The saved mown-grass list is not checked, so in a mismatched save some grass could look mown or tall in the wrong places.
+- Entering a building does not pause the animals, the clock or the weather.
+- Water is a still tile (no animation, nothing moves around the boat).
+- Chore spots (waste, leaves and so on) are a fixed set per zoo, so jobs repeat in the same places.
+- The original (version 1) zoo has no garden, hedges or deliberate lawn, so many grounds tasks do not appear there.
+- Seeds typed in by the player are used as given; there is no seed sharing. The seed box is a plain browser prompt.
+- Boat-and-pond tasks only appear in zoos that have pond spots (every current zoo does).
 
-## Untested
-- Real phone / tablet devices (only an emulated 844x390 browser viewport was checked).
-- Multi-touch (joystick while pressing the action button) has not been tried on a real touchscreen.
-- Playing offline after install (no service worker yet).
-
-## Incomplete / placeholder
-- Doors, dock and gates only show short dialogue. The kitchen, shed and clinic have rooms you can enter.
-- Only one animal (Buster, elephant). Other species come in Milestone 7.
-- Needs run on a simple clock (1 real second = 1 in-game minute, so a shift is about 10 real minutes). No offline catch-up yet (Milestone 10), so the zoo is frozen while the game is closed.
-- Day 2 and later repeat the same kind of tasks; there is no variety, rewards or unlocks yet.
-- The staff building opens a care-report terminal, not a staff room interior (Milestone 4).
-- Only tools needed for this workday exist; first-aid kit and notebook are not in the bag yet.
-- Spots for waste and leaves are fixed positions (a handful each), so mess always appears in the same places.
-- The shift end (18:00) only shows a message; nothing forces you to stop. The clock stops at 22:00 until you end the shift.
-- Long sheets scroll by dragging or mouse wheel; the scroll behaviour has not been tried on a real touchscreen.
-- Small tools icons are first-pass (the bucket and hose are hard to tell apart at a glance).
-- Elephant hunger/energy rates and thresholds are first guesses and have not been playtested over a long session.
-- Animals walk in straight lines with slide-collision, with no pathfinding; fine in the open habitat, not enough for complex habitats later.
-- Loaded animals restart their current activity (a walking animal stands and decides again).
-- Elephant art is a first pass (single side view, five poses).
-- Pixel art is functional first-pass art drawn in code; final art is Milestone 11.
-- Water is a still tile (no animation).
-- Only one hand-designed zoo; seed only changes decoration (full generator is Milestone 5).
-- The `prompt()` box for entering a seed is basic.
-- The game is about 1.4 MB (400 KB gzipped) because it includes all of Phaser. It is split in two files so a phone can keep Phaser between updates.
-
-## Milestone 10 gaps
-- Numbers are first guesses: how often animals conceive (a 16% chance on a good day, at most one pregnancy at a time), gestation and growth days, how fond a pair must be, how much the weather changes thirst. None were tuned by long play, so breeding may be too rare or too common.
-- Newborns and juveniles are the adult sprite drawn smaller (55% and 80%), not a proper baby picture. There are no eggs for penguins, no nursing, no weaning.
-- Only mothers and fathers who are in the same habitat can breed. There is no moving animals between habitats, no sending young away and no maximum for the whole zoo beyond each habitat's limit, so a zoo that is cared for well slowly fills each habitat.
-- Weather affects looks, thirst and the amount of leaves and branches. It does not affect animal behaviour (they do not shelter from rain) or the lighting of the staff room.
-- Time away catches up with one calculation, not a full simulation: relationships, pregnancy and growth do not progress while you are away (they follow game days, which only pass when you end a shift).
+## Animals and life
+- Newborns and juveniles are the adult picture drawn smaller (55% and 80%), not a proper baby picture. No penguin eggs, nursing or weaning.
+- Breeding needs two animals in the same habitat. There is no moving animals between habitats or sending young away, and no zoo-wide maximum beyond each habitat's limit, so a well-cared-for zoo slowly fills its habitats.
+- Only one animal is ill at a time, by design. Medicine is a single generic bag item, and doses are given from the Health sheet, not at the feeding hatch. Symptoms show as a bubble and behaviour only (no limping or scratching pictures). There is no separate vet task in the task list; the report has a VET CARE section.
+- Weather changes the look, thirst and the amount of leaves and branches, but animals do not shelter from rain.
+- Time away is one calculation: relationships, pregnancy and growth do not progress while you are away (they follow game days).
+- Animals walk in straight lines with slide-collision, with no pathfinding, and a loaded animal restarts what it was doing.
+- Zebras and penguins spend a lot of time idle, which can look inactive at a glance.
+- No otters. A habitat's animals are a fixed number per species (3 zebras, 2 lions, 2 red pandas, 3 penguins, 1 elephant) apart from births.
+- Enrichment is one item per habitat per day, passed through the gate; nothing lets the keeper move an item during the day.
+- Care tasks for several habitats make the daily report long (most of it routine, enrichment optional).
 - Random happenings are a short list (eight) and can repeat.
 
-## Milestone 9 gaps
-- Only Chapters 1 and 2 exist. Chapter 2's writing is a short first draft, and its first steps depend on the first illness (Buster's, on day 2). Chapters 3 to 6 (a new arrival, the storm, new life, Margaret's last letter) are not written.
-- Daniel and Dr. Shah have their own colours now, but they are the keeper's drawing recoloured, and Daniel stands in one place. Maya and Leo are only on the noticeboard.
-- The goal line is one short sentence; there is no quest log or map marker. It points at the first open step even if you are partway through a later one.
-- The ending letter is delivered in the day summary, not as something you find by exploring.
-- Steps are matched to history events, so a step done before the story could notice it (for example in an old save) is counted as done.
-- A goal that changes while you are in the staff room is announced only on the next screen you open; the report shows the current goal.
+## Story and people
+- Only Chapters 1 and 2 exist, and Chapter 2's writing is a short first draft that depends on Buster's first illness. Chapters 3 to 6 (a new arrival, the storm, new life, Margaret's last letter) are not written.
+- Daniel and Dr. Shah are the keeper's drawing in their own colours; Daniel stands in one place. Maya and Leo appear only on the noticeboard.
+- The goal line is one sentence, with no quest log. It points at the first open step even if you are partway through a later one. A goal that changes in the staff room is announced on the next screen.
+- The ending letter arrives in the day summary, not by exploring.
+- Story steps are matched to history events, so a step done before the story could notice it (for example in an older save) counts as done.
+- Staff messages are authored and appear by day; they are not tied to conversations.
+- Photographs are captions only (no real pictures of your animals). The staff room is one small fixed room.
 
-## Milestone 8 gaps
-- Condition numbers (how often illness starts, recovery days, how much neglect matters) are first guesses and have not been balanced by long play.
-- Only one animal is ill at a time, by design, so it never overwhelms a new player. Later chapters might want outbreaks.
-- Medicine is a single generic bag item ("Prescribed medicine"), not a different picture per condition. Doses are given from the Health sheet, not by walking to the feeding hatch.
-- There is no separate vet task in the daily task list; the report has a VET CARE section instead, so unfinished vet care does not block ending a shift.
-- Symptoms are shown by a bubble and behaviour (slower, pacing); there are no special "limping" or "scratching" sprites.
-- Saves from before Milestone 8 start with no medical history; the first case is Buster's upset tummy on day 2, or from then on by chance.
+## Art and sound
+- Art is first-pass, drawn in code: rough lying-down poses (a sleeping lion looks like a tan loaf), hiding shown as half-transparent, no male and female looks, a boat that looks like a raft, a single side view for the elephant, tool icons that are hard to tell apart (bucket and hose). Final art would need an artist or licensed assets (record them in the asset catalog).
+- Sound gaps: no footstep variety per ground, no mower, boat or clippings sound, and no music change for story moments.
 
-## Milestone 7 gaps
-- No otters yet (the five species fill every habitat type; otters need a water habitat of their own).
-- Behaviour numbers (rest and graze shares, flee ranges, how fast friendships form, how long enrichment holds interest) were tuned by measuring totals over simulated minutes, not by playing for a long session.
-- Zebras and penguins spend a lot of time "idle" between actions, which can look inactive at a glance.
-- Sprites: the lying-down poses are rough (a sleeping lion looks like a tan loaf); hiding is shown as half-transparent rather than a proper hiding animation; there is no separate male and female look.
-- A habitat's animals are a fixed number per species (3 zebras, 2 lions, 2 red pandas, 3 penguins, 1 elephant). No births, deaths, transfers or new arrivals yet (Milestone 10 and the story chapters).
-- Enrichment needs the keeper to pass it through the gate, one item per habitat per day. Animals can lose interest quickly, and nothing yet lets the keeper reuse or relocate an item during the day.
-- Care tasks for four or five habitats make the daily report long. Most of it is routine, and enrichment is optional.
-- Older version 5 saves do not have the other species' animals: they are created fresh for those habitats when the save is loaded.
-- Generator changes made in Milestones 5 to 7 were not all versioned: a save made during those milestones (generator version 2) loads into the current zoo, which can look different from the one it was made in. Progress (history, bond, tasks, inventory) is kept.
-- The inspect panel is crowded for animals with long trait lists on very short phone screens.
+## Phones and access
+- No large-text option and no high-contrast theme. Screen readers cannot read a game drawn on a canvas.
+- No offline play: there is a web app manifest and icons (so a phone can add it to the home screen full-screen) but no service worker, so it needs a connection to load.
+- The portrait note ("turn your phone sideways") only shows on narrow portrait screens, and the game does not lock the orientation.
+- On a very short phone the text area of sheets is small.
+- Settings are one set per device, not per player.
 
-## Milestone 6 gaps
-- Mower and boat feel (speed, turning, battery length) are first guesses, tested with scripted input rather than on a phone.
-- There is no sound for the mower, the boat or the clippings (Milestone 11).
-- The mower and boat sprites are first-pass art (the boat looks like a flat raft with a person standing on it). Nothing animates the water around the boat.
-- The mower cannot be left outside: dismounting anywhere returns it to the shed (uncharged unless you park at the shed).
-- There is no safe-driving rule beyond collisions, the battery and meadow protection (there are no visitors yet to avoid).
-- Mowed grass regrows by a fixed share each night; there is no weather or season effect (Milestone 10).
-- The "lost object" appears once, on day 2, as a spanner. Other discoveries (the photograph aside) are not yet tied to the pond.
-- Chore spots are fixed sets per zoo, so jobs repeat in the same places (a few positions each).
-- The original (version 1) zoo has no garden, hedges or deliberate lawn, so many grounds tasks do not appear there.
-- Boat-and-pond tasks only appear when the zoo has pond spots, which every zoo currently does.
-
-## Milestone 5 gaps
-- Every generated zoo has the same overall plan (entrance south, promenade across, habitats north, buildings on a service path, pond in a south corner). Seeds change arrangement and choice of habitats, not the whole shape of the park.
-- Map size is fixed (52 by 40 tiles). No hills, rivers or multi-level terrain.
-- Only the elephant habitat is inhabited; the other habitats are empty with a locked gate and sign until Milestone 7. They have no feeding hatches yet.
-- "Repair" of an invalid layout is done by regenerating (another attempt), not by editing the broken layout.
-- The generator version 1 zoo stays in the code for old saves and as the fallback. If it ever needs changing, it should become version 3 rather than being edited in place.
-- Seeds typed in by the player are used as given (not trimmed beyond whitespace); there is no seed sharing or QR code.
-- The tile art for the new habitat types reuses existing tiles (tall grass, dirt, stone, shore, water). They look similar to one another.
-- No overview map yet (planned for the polish milestone).
-
-## Milestone 4 gaps
-- Only one animal exists, so animals cannot yet be compared side by side (Milestone 7).
-- Preferences covered so far: favourite resting place (dust or shade) and greeting. Not yet: favourite enrichment, weather and shade preference, favourite food (needs enrichment, weather and more food types).
-- Bond only grows (no decay) and has no effect other than greeting; richer effects come later.
-- The staff room is a small fixed room. Calendar shows the day and shift count only (no seasons yet). Photographs are authored captions only (no real images of your animals).
-- Staff messages are authored and appear by day. They are not yet tied to conversations or quests (Milestone 9).
-- While in the staff room, in-game time is paused.
-- The History button was tested by triggering its handler, not by an actual finger tap.
-- The inspect panel is crowded on very short phone screens (6 bars plus tips).
+## Saving
+- One backup copy, from the start of the last day (or the last quit). No export or import between devices.
+- Saves from before Milestone 8 start with no medical history; saves from before Milestone 7 get the other species' animals created fresh.
+- A save made while the park generator was being changed (generator versions 2 to 4 during development) can look different when loaded; progress (history, bond, tasks, inventory) is kept, and animals are always put back inside their pens.
 
 ## Bugs
 - None known.

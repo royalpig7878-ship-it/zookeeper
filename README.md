@@ -158,6 +158,10 @@ The zoo now changes over time, gently.
   The clock keeps running while you are inside, and the door out is always at the bottom of the room. **Rooms fill the screen however you hold the phone:** a room gets extra floor (wider when the screen is wide, longer when it is tall) so nothing is left empty.
 - **A park laid out like a real zoo.** New games build a bigger park (72 by 58 tiles). **One path circles the whole park in a loop.** The main entrance opens onto a round plaza that sits on the loop, and a lake lies in the heart of the park with a short side path to its dock. Habitats gather around the loop at different places and heights, with the buildings, a garden and little woods scattered between. Every seed gives a different park. **Games you already started keep their old park**, but their buildings can be entered too.
 
+## Overview map
+
+The map button (next to the bag, or the **M** key) shows the whole park from above: the loop path, every habitat and building by name, the pond and dock, the entrance, and a flashing marker where you are. The world pauses while it is open. Tap anywhere, press M or Esc to close.
+
 ## Not built yet
 
 More animals (otters), Chapters 3 to 6, final art, large text, offline play. See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) and [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).

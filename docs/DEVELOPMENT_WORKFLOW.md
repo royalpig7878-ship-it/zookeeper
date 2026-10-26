@@ -201,6 +201,11 @@ Asked for after Milestone 11: the food preparation, shed and clinic work should 
 
 Honest notes: the new park is judged by eye on a few seeds and by tests, not played through on a phone. Habitats still face south (their hatches are on the south fence), so some orientation sameness remains. The rooms are fixed designs, not generated. The plaza and the places where paths merge can look like wide grey patches.
 
+## Extra: overview map and a cleaned-up issues list
+
+- [x] A map button and the M key show the whole park (names, pond, dock, entrance, where you are), for every park version. 277 automated tests (3 new for the map data); checked in the browser that it opens, closes with Esc, M and a tap, pauses the world, and says so when you are inside a building
+- [x] `docs/KNOWN_ISSUES.md` rewritten: fixed and out-of-date entries removed, the rest grouped by what is needed (a person to try it, the park, animals, story, art and sound, phones, saving)
+
 ## Fix: animals outside their pens
 
 A saved game made on the first scattered park (generator version 4) was loaded into the loop park after that code replaced version 4 without a new number, so its animals kept their old coordinates, which were open ground in the new park. Fixed three ways: the scattered park is restored as the frozen version 4 and the loop park is version 5; a saved game of version 4 is matched to whichever park its animals fit (the loop park is still reported as 4 so the save keeps finding it); and any animal whose saved spot is not inside its own pen is put back where its species starts. Tests keep fingerprints of versions 3, 4 and 5 so a layout cannot change under a saved game again.

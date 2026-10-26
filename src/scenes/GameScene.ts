@@ -39,6 +39,7 @@ import {
   markArrived, maybeStartCase, newMedical, readyForCheck, recordSymptoms, recoveryCheck, reportToVet, statusLine, visitDue,
 } from '../systems/medical';
 import { HabitatInfo, InteractAction, Interactable, Terrain, ZooLayout, animalsFit, buildZoo, insideHabitat, tileCenter } from '../world/layout';
+import { mapView } from '../world/mapView';
 import { INTERIOR_IDS, InteriorId, InteriorLayout, buildInterior, fitInterior, withEnterableBuildings } from '../world/interiors';
 import { ROOM_BG } from '../world/staffRoom';
 import { collides, moveWithCollision, nearestWithin } from '../world/movement';
@@ -1406,11 +1407,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------ sheets: report, bag, history
-  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'history' | 'medical') {
+  private openPanel(kind: 'bag' | 'tasks' | 'report' | 'history' | 'medical' | 'map') {
     if (this.registry.get('modal') || this.transitioning || this.job) return;
     this.inspecting = null;
     if (kind === 'bag') this.game.events.emit('ui:sheet', bagSheet(this.inventory));
-    else if (kind === 'medical') this.openMedical();
+    else if (kind === 'map') {
+      this.game.events.emit('ui:map', { view: mapView(this.layoutData), player: this.indoor ? undefined : { x: this.px / TILE, y: this.py / TILE } });
+    } else if (kind === 'medical') this.openMedical();
     else if (kind === 'history') {
       const view = this.lastInspected ?? this.buster;
       if (view) {

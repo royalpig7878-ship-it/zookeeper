@@ -42,6 +42,9 @@ World freezes (`registry.paused`) behind the pause menu and any sheet. Dialogues
 - Order matters for fit: the loop, then the lake, then the big habitats, the garden, the small buildings, the branches, then props and scenery.
 - `fitInterior(id, screenW, screenH, tile)` returns the extra columns and rows to add to a room (`buildInterior(id, pad)` puts the extra columns on the sides and the extra rows between the back furniture and the front) and a zoom that covers the screen. `GameScene.applyZoom` rebuilds the room when the screen changes shape.
 
+## Overview map
+`world/mapView.ts` turns any park layout into drawable data (terrain, named habitats and buildings, the pond, dock and entrance); `ui/mapPanel.ts` draws it once when it opens, fitted to the screen, with a marker for the keeper. `GameScene` opens it on `ui:open` with `map`, pausing the world like a sheet; indoors it says you are inside a building.
+
 ## Polish (Milestone 11)
 - `core/settings.ts` is pure: the `Settings` shape, `sanitizeSettings`, `applySettingAction` (what each settings button does) and a small store that saves on every change and tells listeners. `core/settingsInstance.ts` is the one shared copy. `systems/sheets.ts` builds the settings sheet, and the sheet component now wraps a long row of buttons onto more lines.
 - `audio/plan.ts` is pure (the music scale, which background sounds fit the weather and hour, a limit on simultaneous sounds); `audio/engine.ts` makes the sound with Web Audio and listens to game events (`sfx`, `ui:weather`, `ui:daylight`, `ui:toast`). Scenes only emit `this.game.events.emit('sfx', name)`.
