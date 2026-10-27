@@ -51,3 +51,41 @@ describe('signs stand beside the walkway, not in it', () => {
     }
   });
 });
+
+describe('paths line up (generator version 7)', () => {
+  it('every building door pad is a two-by-two block of dirt on even coordinates, under the door', () => {
+    for (const seed of SEEDS) {
+      const L = buildZoo(seed, { version: 7 });
+      for (const id of ['staff-door', 'food-door', 'vet-door', 'shed-door']) {
+        const d = L.interactables.find((i) => i.id === id)!;
+        expect(d.x % 2, `${seed} ${id} x`).toBe(0);
+        expect(d.y % 2, `${seed} ${id} y`).toBe(0);
+        for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) expect(L.terrain[d.y + dy][d.x + dx], `${seed} ${id}`).toBe(Terrain.Dirt);
+      }
+    }
+  });
+
+  it('the dock trail and the entrance sit on even coordinates too', () => {
+    for (const seed of SEEDS) {
+      const L = buildZoo(seed, { version: 7 });
+      expect(L.spawn.x % 2, seed).toBe(0);
+      expect(L.spawn.y % 2, seed).toBe(0);
+    }
+  });
+
+  it('most of the path is made of whole two-by-two blocks, so stone and dirt meet edge to edge', () => {
+    for (const seed of SEEDS.slice(0, 15)) {
+      const L = buildZoo(seed, { version: 7 });
+      let path = 0;
+      let inBlock = 0;
+      for (let y = 0; y < L.height; y += 2)
+        for (let x = 0; x < L.width; x += 2) {
+          const cell = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([dx, dy]) => isPath(L, x + dx, y + dy));
+          const n = cell.filter(Boolean).length;
+          path += n;
+          if (n === 4) inBlock += 4;
+        }
+      expect(inBlock / path, seed).toBeGreaterThan(0.85);
+    }
+  });
+});

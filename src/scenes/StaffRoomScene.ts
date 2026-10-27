@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PLAYER, TILE } from '../config/constants';
+import { settings } from '../core/settingsInstance';
 import { Facing, SaveData, browserStore, writeSave } from '../core/save';
 import { NOTES, NOTE_EVENT_TEXT } from '../data/notes';
 import { Clock, formatTime, newClock } from '../systems/clock';
@@ -154,10 +155,15 @@ export class StaffRoomScene extends Phaser.Scene {
 
   private applyZoom() {
     const { width, height } = this.scale;
-    const zoom = Math.max(1, Math.floor(Math.min(width / (ROOM_W * TILE), height / (ROOM_H * TILE))));
+    // Cover the whole screen (no black bars, held either way up): zoom in until the room fills it, then let the camera
+    // follow the keeper around the room. Rounded up to a quarter step so the pixels stay even.
+    const zoom = Math.min(4, Math.ceil(Math.max(width / (ROOM_W * TILE), height / (ROOM_H * TILE)) * 4) / 4);
     const cam = this.cameras.main;
+    cam.setBounds(0, 0, ROOM_W * TILE, ROOM_H * TILE);
     cam.setZoom(zoom);
-    cam.centerOn((ROOM_W * TILE) / 2, (ROOM_H * TILE) / 2);
+    const smooth = settings.get().reducedMotion ? 1 : 0.2;
+    cam.startFollow(this.player, true, smooth, smooth);
+    cam.centerOn(this.px, this.py);
   }
 
   // ------------------------------------------------------------ per frame

@@ -48,7 +48,7 @@ export interface Padding {
 }
 export const NO_PADDING: Padding = { cols: 0, rows: 0 };
 export const MAX_PAD_COLS = 12;
-export const MAX_PAD_ROWS = 18;
+export const MAX_PAD_ROWS = 4;
 /** Things at or below this row of the basic room are "in front" and move down when rows are added. */
 const FRONT_ROW = 6;
 
@@ -163,7 +163,9 @@ export const buildInterior = (id: InteriorId, pad: Padding = NO_PADDING): Interi
 
 /**
  * Choose how to show a room on a screen of the given size (in pixels): how much extra floor to add and how far to
- * zoom in so that the room covers the whole screen, held either way up.
+ * zoom in so that the room covers the whole screen, held either way up. Only a little floor is added (a tall phone
+ * screen would otherwise get a room stretched with empty floor); the rest is covered by zooming in, and the camera
+ * follows the keeper around the room.
  */
 export function fitInterior(id: InteriorId, screenW: number, screenH: number, tile: number): { pad: Padding; zoom: number } {
   const base = buildInterior(id);
@@ -174,7 +176,8 @@ export function fitInterior(id: InteriorId, screenW: number, screenH: number, ti
   const w = base.width + cols;
   const h = base.height + rows;
   // then zoom so the room (with its extra floor) covers the screen: the camera can then never show anything outside it
-  const zoom = Math.min(4, Math.max(screenW / (w * tile), screenH / (h * tile)));
+  // (rounded up to a quarter step, so the pixels stay even and the room still covers the screen)
+  const zoom = Math.min(4, Math.ceil(Math.max(screenW / (w * tile), screenH / (h * tile)) * 4) / 4);
   return { pad: { cols, rows }, zoom };
 }
 

@@ -1,7 +1,7 @@
 import { GENERATOR_VERSION, TILE } from '../config/constants';
 import { GenerationError, generateZoo } from './generator';
 import { generateZoo4 } from './generatorV4';
-import { generateZoo5, generateZoo6 } from './generatorV5';
+import { generateZoo5, generateZoo6, generateZoo7 } from './generatorV5';
 import { buildLegacyZoo } from './legacy';
 import { ZooLayout } from './types';
 import { validateZoo } from './validate';
@@ -49,7 +49,7 @@ function generateWith(version: number, seed: string, opts: BuildOptions): ZooLay
   if (version <= 1) return buildLegacyZoo(seed, 1, false);
   const validate = opts.validate ?? validateZoo;
   const attempts = opts.attempts ?? MAX_ATTEMPTS;
-  const make = version >= 6 ? generateZoo6 : version === 5 ? generateZoo5 : version === 4 ? generateZoo4 : generateZoo;
+  const make = version >= 7 ? generateZoo7 : version === 6 ? generateZoo6 : version === 5 ? generateZoo5 : version === 4 ? generateZoo4 : generateZoo;
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       const layout = make(seed, attempt);
@@ -66,7 +66,7 @@ function generateWith(version: number, seed: string, opts: BuildOptions): ZooLay
  *
  * Each generator version is frozen once a game can have been saved with it: the same seed and version always
  * give the same zoo. Version 1 is the original fixed zoo, 2 and 3 the first generated parks (a row of habitats),
- * 4 scattered parks with branching paths, 5 a park with a loop path around it, 6 (current) the same with signs beside the walkway. Each tries up to
+ * 4 scattered parks with branching paths, 5 a park with a loop path around it, 6 the same with signs beside the walkway, 7 (current) paths on a grid of two-tile squares so stone and dirt paths meet edge to edge. Each tries up to
  * MAX_ATTEMPTS layouts in a fixed order and uses the first that passes validation, else the hand-built fallback.
  *
  * Version 4 is special: for a short while its code was replaced by the loop layout without a new number, so a

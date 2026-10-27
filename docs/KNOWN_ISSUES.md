@@ -61,6 +61,14 @@ What is still open, grouped by what it needs. Items that were fixed have been re
 
 - A game saved before park version 6 keeps its own park, including a few signs that stand inside the walkway. Start a new game to get signs beside the path. (Parks from version 5 on already have a loop path around the whole zoo.)
 
+## Rooms on different screens
+- Every room (staff room, kitchen, shed, clinic) now covers the whole screen with no black bars, held either way up. The staff room zooms in and the camera follows you; the three park buildings add a little extra floor (at most 4 rows) and zoom in. On a tall phone you see only part of a room at a time and the view scrolls with you. Checked in the browser at a phone-sized portrait window for the staff room and kitchen, not on a real phone, and not the shed or clinic by eye (they use the same code and automated screen-size tests)
+
+## Path alignment
+- New games (park version 7) lay every path in two-tile squares on a grid, so stone and dirt paths meet edge to edge and each door pad is a 2 by 2 block of dirt on the door. Saved games from before keep their old parks, with the old offset joins. Where a path cannot fit two tiles wide the generator falls back to a one-off tile-by-tile route, which can still be offset (rare, not counted)
+- The vet and food buildings are 5 tiles wide but their door pad is 2 tiles wide, so the door sits half a tile off the middle of its pad. The staff building and shed line up exactly
+- First-attempt success of the park generator is about 89 to 90 in 100 seeds, the same as before (the rest retry)
+
 ## Path edges
 - Path corners are rounded by a picture drawn over the ground (`world/pathEdges.ts`, `art/pathEdgesLayer.ts`), not by new tiles. Straight edges stay square on purpose. Corners are not rounded against water, shore or docks. Checked by eye on a few corners, and the redraw after mowing and regrowing has not been looked at closely
 

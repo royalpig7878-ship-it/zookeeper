@@ -71,11 +71,23 @@ export function generateZoo6(seed: string, attempt: number): ZooLayout {
   return generateZoo5(seed, attempt, 6);
 }
 
+/**
+ * Version 7 is version 6 with every path laid on a grid of two-tile squares, and the things that join paths (the
+ * entrance, building door pads, habitat gates, the dock trail) placed to match. Paths of different ground (stone
+ * sidewalks and dirt paths) then meet edge to edge instead of one sliding sideways across the other, and each
+ * door pad sits under its door.
+ */
+export function generateZoo7(seed: string, attempt: number): ZooLayout {
+  return generateZoo5(seed, attempt, 7);
+}
+
 export function generateZoo5(seed: string, attempt: number, version = VERSION): ZooLayout {
   const W = MAP_W5;
   const H = MAP_H5;
   const rng = new Rng(`${seed}|gen${VERSION}|${attempt}`);
   const noiseSeed = hashSeed(`${seed}|paths|${attempt}`);
+  /** version 7: paths are made of two-tile squares that sit on even coordinates */
+  const aligned = version >= 7;
   const g = new Grid(W, H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) g.terrain[y][x] = rng.int(0, 3);
 
@@ -160,6 +172,57 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
     }
   };
 
+  /** Version 7 routing: nodes sit on even coordinates and each stands for a 2x2 block of tiles. */
+  const routeCells = (start: Pt, goal: (x: number, y: number) => boolean): Pt[] | null => {
+    const best = new Float64Array(W * H).fill(Infinity);
+    const from = new Int32Array(W * H).fill(-1);
+    const heap = new Heap();
+    best[key(start.x, start.y)] = 0;
+    heap.push(0, key(start.x, start.y));
+    const blockTiles = (nx: number, ny: number): Pt[] => [{ x: nx, y: ny }, { x: nx + 1, y: ny }, { x: nx, y: ny + 1 }, { x: nx + 1, y: ny + 1 }];
+    while (heap.size > 0) {
+      const { c, k } = heap.pop()!;
+      if (c > best[k]) continue;
+      const x = k % W;
+      const y = Math.floor(k / W);
+      if ((x !== start.x || y !== start.y) && blockTiles(x, y).some((t) => goal(t.x, t.y))) {
+        const out: Pt[] = [];
+        for (let cur = k; cur !== -1; cur = from[cur]) out.push({ x: cur % W, y: Math.floor(cur / W) });
+        return out.reverse();
+      }
+      for (const [dx, dy] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 2 || ny < 2 || nx > W - 4 || ny > H - 4) continue;
+        const tiles = blockTiles(nx, ny);
+        const ok = tiles.every((t) => isPath(t.x, t.y) || goal(t.x, t.y) || strips.has(key(t.x, t.y)) || !(g.reserved[t.y][t.x] || g.blocked[t.y][t.x]));
+        if (!ok) continue;
+        const onPath = tiles.every((t) => isPath(t.x, t.y));
+        const nc = c + 2 * (onPath ? 0.65 : 1 + wobble(nx, ny) * 1.5); // a stronger wobble, since steps are two tiles long
+        const nk = key(nx, ny);
+        if (nc < best[nk]) {
+          best[nk] = nc;
+          from[nk] = k;
+          heap.push(nc, nk);
+        }
+      }
+    }
+    return null;
+  };
+
+  /** Lay a route of 2x2 blocks. Returns every tile laid, for the network. */
+  const layCells = (nodes: Pt[], ground: Terrain): Pt[] => {
+    const tiles: Pt[] = [];
+    for (const n of nodes)
+      for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+        const t = { x: n.x + dx, y: n.y + dy };
+        if (!g.inBounds(t.x, t.y) || g.blocked[t.y][t.x]) continue;
+        if (!isPath(t.x, t.y)) g.fill(t.x, t.y, 1, 1, ground);
+        tiles.push(t);
+      }
+    return tiles;
+  };
+
   // ---- the loop: one path that circles the whole park, a rounded ring that is a little lumpy so it is not a perfect oval
   const network = new Set<number>();
   const joinNetwork = (x: number, y: number) => network.has(key(x, y));
@@ -186,13 +249,22 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
   const STEPS = 28;
   const loopPts: Pt[] = [];
   for (let i = 0; i < STEPS; i++) {
-    const p = loopPoint(Math.PI / 2 + (i / STEPS) * Math.PI * 2); // start at the south, where the entrance is
+    const raw = loopPoint(Math.PI / 2 + (i / STEPS) * Math.PI * 2); // start at the south, where the entrance is
+    // version 7: snap to even coordinates, and nudge only the points squeezed against the edge of the map, so that
+    // stretch does not become one dead-straight line
+    const squeezedY = raw.y >= H - 10 || raw.y <= 6;
+    const squeezedX = raw.x >= W - 7 || raw.x <= 6;
+    const inward = 2 * Math.abs(Math.round(Math.sin(i * 1.9 + phase * 2) * 1.5)); // 0, 2 or 4 tiles towards the middle
+    const p = aligned
+      ? { x: (squeezedX ? raw.x + (raw.x > W / 2 ? -inward : inward) : raw.x) & ~1, y: (squeezedY ? raw.y + (raw.y > H / 2 ? -inward : inward) : raw.y) & ~1 }
+      : raw;
     const last = loopPts[loopPts.length - 1];
     if (!last || dist(p, last) > 0) loopPts.push(p);
   }
 
   // ---- the entrance joins the loop at its southern side, and the keeper starts just inside
-  const ex = Math.max(10, Math.min(W - 12, loopPts[0].x + rng.int(-4, 4)));
+  const ex0 = Math.max(10, Math.min(W - 12, loopPts[0].x + rng.int(-4, 4)));
+  const ex = aligned ? ex0 & ~1 : ex0;
   const entranceY = H - 4;
   g.add({ kind: 'building_entrance', x: ex - 2, y: entranceY, w: 6, h: 3, solid: true });
   for (let y = entranceY; y < entranceY + 3; y++) g.blocked[y][ex] = g.blocked[y][ex + 1] = false;
@@ -205,10 +277,13 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
     const from = loopPts[i];
     const to = loopPts[(i + 1) % loopPts.length];
     if (from.x === to.x && from.y === to.y) continue;
-    const r = route(from, (x, y) => x === to.x && y === to.y);
+    const r = aligned ? routeCells(from, (x, y) => x === to.x && y === to.y) : route(from, (x, y) => x === to.x && y === to.y);
     if (!r) throw new GenerationError('the loop path cannot be completed');
-    lay(r, Terrain.Stone);
-    addToNetwork(r);
+    if (aligned) addToNetwork(layCells(r, Terrain.Stone));
+    else {
+      lay(r, Terrain.Stone);
+      addToNetwork(r);
+    }
   }
 
   // ---- the plaza: a round stone forecourt where the entrance meets the loop
@@ -226,10 +301,13 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
     }
   addToNetwork(plaza);
   // the way in: from the entrance straight to the plaza and the loop
-  const trunk = route({ x: ex, y: entranceY - 1 }, joinNetwork);
+  const trunk = aligned ? routeCells({ x: ex, y: entranceY - 2 }, joinNetwork) : route({ x: ex, y: entranceY - 1 }, joinNetwork);
   if (!trunk) throw new GenerationError('the entrance cannot reach the loop');
-  lay(trunk, Terrain.Stone);
-  addToNetwork(trunk);
+  if (aligned) addToNetwork(layCells(trunk, Terrain.Stone));
+  else {
+    lay(trunk, Terrain.Stone);
+    addToNetwork(trunk);
+  }
 
   // ---- the pond: a rounded lake near the middle of the park, with a dock on a short branch of the loop
   const pondW = rng.int(10, 12);
@@ -238,7 +316,8 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
   let pondScore = Infinity;
   for (let tries = 0; tries < 300; tries++) {
     const x = rng.int(3, W - 4 - pondW);
-    const y = rng.int(8, H - 8 - pondH);
+    let y = rng.int(8, H - 8 - pondH);
+    if (aligned && (y & 1) === 0) y += 1; // the dock row (3 below the top) is then even
     if (!rectFree(x, y, pondW, pondH, 2) || Math.hypot(x + pondW / 2 - hubX, y - hubY) < 11) continue;
     // the dock faces the middle of the park: keep a corridor clear in front of it for its path
     const westSide = x + pondW / 2 < cx;
@@ -281,6 +360,13 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
     dockTrailStart = { x: px0 - 3, y: dockY };
   }
 
+  if (aligned) {
+    // the trail leaves the dock on an even column; any gap between the dock and the trail is dirt too
+    const edge = dockTrailStart.x;
+    dockTrailStart = { x: pondWest ? edge + (edge & 1) : edge - (edge & 1), y: dockY };
+    for (let xx = Math.min(edge, dockTrailStart.x); xx <= Math.max(edge, dockTrailStart.x); xx++) g.fill(xx, dockY, 1, 2, Terrain.Dirt);
+  }
+
   // ---- habitats: each at its own random spot, none in a row
   const extras = shuffle(EXTRA_HABITATS, rng).slice(0, 2);
   const defs: { def: HabitatDef; id: string }[] = shuffle(
@@ -301,14 +387,19 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
     // Try many spots; of the ones that fit, take the one that sits nearest the loop (plus a little chance), so the
     // habitats gather around the loop at different places and the middle of the park stays open for the pond and plaza.
     let best: { x: number; hb: number; score: number } | null = null;
-    for (let tries = 0; tries < 400; tries++) {
-      const x = rng.int(3, W - 4 - def.w);
+    for (let tries = 0; tries < (aligned ? 600 : 400); tries++) {
+      const x0 = rng.int(3, W - 4 - def.w);
       const hb = rng.int(def.h + 2, H - 10); // the row of the south fence: some stand higher, some lower
       const hy = hb - def.h + 1;
       if (hy < 3) continue;
-      if (!rectFree(x, hy, def.w, def.h + 3, 1)) continue;
-      const score = nearLoop(x + def.w / 2, hy + def.h / 2) + rng.next() * 14;
-      if (!best || score < best.score) best = { x, hb, score };
+      // version 7: the gate sits on an even column, so a spot on the wrong column is moved one tile either way
+      const xs = aligned && ((x0 + Math.floor(def.w / 2) - 1) & 1) ? [x0 + 1, x0 - 1] : [x0];
+      for (const x of xs) {
+        if (x < 3 || x > W - 4 - def.w || !rectFree(x, hy, def.w, def.h + 3, 1)) continue;
+        const score = nearLoop(x + def.w / 2, hy + def.h / 2) + rng.next() * 14;
+        if (!best || score < best.score) best = { x, hb, score };
+        break;
+      }
     }
     if (!best) throw new GenerationError(`no room for the ${id} habitat`);
     const built = buildHabitat(g, def, id, best.x, best.hb, best.hb + 2);
@@ -343,12 +434,21 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
     const def = BUILDINGS[id];
     let spot: { x: number; y: number } | null = null;
     for (let tries = 0; tries < 400 && !spot; tries++) {
-      const x = rng.int(3, W - 4 - def.w);
-      const by = rng.int(6, H - 12);
-      // the door row is by + h; leave grass in front of it for the path
-      if (!rectFree(x, by, def.w, def.h + 2, 1)) continue;
-      if (placed.some((p) => Math.abs(p.x - x) < 3 && Math.abs(p.y - by) < 3)) continue;
-      spot = { x, y: by };
+      const x0 = rng.int(3, W - 4 - def.w);
+      const by0 = rng.int(6, H - 12);
+      // version 7: the door pad sits on even columns and an even row, so a spot is moved one tile if it is not
+      const xs = aligned && ((x0 + ((def.w - 1) >> 1)) & 1) ? [x0 + 1, x0 - 1] : [x0];
+      const ys = aligned && ((by0 + def.h) & 1) ? [by0 + 1, by0 - 1] : [by0];
+      for (const x of xs) {
+        for (const by of ys) {
+          if (spot) break;
+          if (x < 3 || x > W - 4 - def.w || by < 6) continue;
+          // the door row is by + h; leave grass in front of it for the path
+          if (!rectFree(x, by, def.w, def.h + 2, 1)) continue;
+          if (placed.some((p) => Math.abs(p.x - x) < 3 && Math.abs(p.y - by) < 3)) continue;
+          spot = { x, y: by };
+        }
+      }
     }
     if (!spot) throw new GenerationError(`no room for the ${id} building`);
     g.add({ kind: def.kind, x: spot.x, y: spot.y, w: def.w, h: def.h, solid: true });
@@ -359,6 +459,12 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
 
   // ---- the paths: a branch from the loop to every habitat gate, building door and the dock
   const branch = (from: Pt, ground: Terrain, what: string) => {
+    const cells = aligned ? routeCells(from, joinNetwork) : null;
+    if (cells) {
+      addToNetwork(layCells(cells, ground));
+      return;
+    }
+    // (version 7 falls back to a tile-by-tile route where there is no room for a two-tile-wide one)
     const r = route(from, joinNetwork);
     if (!r) throw new GenerationError(`no path for ${what}`);
     lay(r, ground);
@@ -366,6 +472,13 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
   };
   // habitats nearest the plaza first, so later paths can join earlier ones
   for (const h of [...habitats].sort((a, b) => dist(a.approach, { x: hubX, y: hubY }) - dist(b.approach, { x: hubX, y: hubY }))) {
+    if (aligned) {
+      // the first block of path starts on an even row, just below the stub at the gate
+      const startY = h.approach.y & 1 ? h.approach.y + 1 : h.approach.y;
+      if (!g.free(h.approach.x, startY) && !isPath(h.approach.x, startY)) throw new GenerationError(`blocked gate path for ${h.id}`);
+      branch({ x: h.approach.x, y: startY }, Terrain.Stone, `${h.id} habitat`);
+      continue;
+    }
     network.add(key(h.approach.x, h.approach.y));
     const stubStart = { x: h.approach.x, y: h.approach.y + 1 };
     // the stub in front of the gate is already stone; route from just below it
@@ -377,14 +490,14 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
   const doors = new Map<BuildingId, Pt>();
   for (const b of [...placed].sort((a, c) => dist({ x: a.x, y: a.y }, { x: hubX, y: hubY }) - dist({ x: c.x, y: c.y }, { x: hubX, y: hubY }))) {
     const def = BUILDINGS[b.id];
-    const doorX = b.x + Math.floor(def.w / 2);
+    const doorX = aligned ? b.x + ((def.w - 1) >> 1) : b.x + Math.floor(def.w / 2);
     const doorRow = b.y + def.h;
-    g.fill(doorX, doorRow, 2, 1, Terrain.Dirt);
+    g.fill(doorX, doorRow, 2, aligned ? 2 : 1, Terrain.Dirt);
     doors.set(b.id, { x: doorX, y: doorRow });
     branch({ x: doorX, y: doorRow }, Terrain.Dirt, `the ${b.id} building`);
   }
   // the dock and a trail to it
-  g.fill(dockTrailStart.x, dockTrailStart.y, 1, 1, Terrain.Dirt);
+  g.fill(dockTrailStart.x, dockTrailStart.y, aligned ? 2 : 1, aligned ? 2 : 1, Terrain.Dirt);
   branch(dockTrailStart, Terrain.Dirt, 'the dock');
 
   // ---- props along the paths
@@ -493,13 +606,19 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
 
   // ---- version 6: signs stand beside the walkway, not inside it
   if (version >= 6) {
-    const wedged = (x: number, y: number) => (isPath(x - 1, y) && isPath(x + 1, y)) || (isPath(x, y - 1) && isPath(x, y + 1));
-    const touchesPath = (x: number, y: number) => isPath(x - 1, y) || isPath(x + 1, y) || isPath(x, y - 1) || isPath(x, y + 1);
+    // (version 7 counts the tile the sign is leaving as path, since it becomes walkway, and looks a little further)
+    let vacated: Pt | null = null;
+    const P = (x: number, y: number) => isPath(x, y) || (vacated !== null && x === vacated.x && y === vacated.y);
+    const wedged = (x: number, y: number) => (P(x - 1, y) && P(x + 1, y)) || (P(x, y - 1) && P(x, y + 1));
+    const touchesPath = (x: number, y: number) => P(x - 1, y) || P(x + 1, y) || P(x, y - 1) || P(x, y + 1);
+    const reach = aligned ? 6 : 4;
     const signs = I.filter((i) => i.id.includes('sign'));
     for (const s of signs) {
+      vacated = null;
       if (!wedged(s.x, s.y)) continue;
+      vacated = aligned ? { x: s.x, y: s.y } : null;
       const near: [number, number][] = [];
-      for (let dx = -4; dx <= 4; dx++) for (let dy = -4; dy <= 4; dy++) near.push([dx, dy]);
+      for (let dx = -reach; dx <= reach; dx++) for (let dy = -reach; dy <= reach; dy++) near.push([dx, dy]);
       near.sort((u, v) => Math.abs(u[0]) + Math.abs(u[1]) - Math.abs(v[0]) - Math.abs(v[1]));
       for (const [dx, dy] of near) {
         const nx = s.x + dx;
@@ -515,6 +634,7 @@ export function generateZoo5(seed: string, attempt: number, version = VERSION): 
         s.y = ny;
         break;
       }
+      vacated = null;
     }
     const w = I.find((i) => i.id === 'welcome-sign');
     if (w) welcome = { x: w.x, y: w.y };

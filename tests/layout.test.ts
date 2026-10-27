@@ -176,7 +176,7 @@ describe('validation, retries and the fallback map', () => {
       calls++;
       return calls <= 2 ? ['pretend problem'] : validateZoo(l);
     };
-    const L = buildZoo('retry-test', { validate: failTwice });
+    const L = buildZoo('retry-a', { validate: failTwice });
     expect(L.meta.attempt).toBe(2);
     expect(L.meta.usedFallback).toBe(false);
     expect(calls).toBe(3);

@@ -3,7 +3,7 @@ import { TILE } from '../src/config/constants';
 import { hashSeed } from '../src/core/rng';
 import { generateZoo } from '../src/world/generator';
 import { generateZoo4 } from '../src/world/generatorV4';
-import { generateZoo5 } from '../src/world/generatorV5';
+import { generateZoo5, generateZoo6, generateZoo7 } from '../src/world/generatorV5';
 import { animalsFit, buildZoo, insideHabitat } from '../src/world/layout';
 import { validateZoo } from '../src/world/validate';
 
@@ -28,20 +28,30 @@ describe('every generator version is frozen, so saved games keep their parks', (
     expect(generateZoo5('abc', 0).width).toBe(72);
   });
 
+  it('version 6 (signs beside the walkway) never changes', () => {
+    const expected = [1832978172, 986780262, 4231913416, 19232950];
+    SEEDS.forEach((s, i) => expect(fingerprint(generateZoo6(s, 0)), `v6 ${s}`).toBe(expected[i]));
+  });
+
+  it('version 7 (paths on a grid of two-tile squares) never changes', () => {
+    const expected = [2463479335, 3073381886, 3331242171, 49814250];
+    SEEDS.forEach((s, i) => expect(fingerprint(generateZoo7(s, 0)), `v7 ${s}`).toBe(expected[i]));
+  });
+
   it('asking for each version gives that version', () => {
-    for (const v of [3, 4, 5, 6]) {
+    for (const v of [3, 4, 5, 6, 7]) {
       const z = buildZoo('versions-demo', { version: v });
       expect(z.generatorVersion, `v${v}`).toBe(v);
       expect(validateZoo(z), `v${v}`).toEqual([]);
     }
-    expect(buildZoo('versions-demo').generatorVersion).toBe(6);
+    expect(buildZoo('versions-demo').generatorVersion).toBe(7);
     expect(buildZoo('versions-demo', { version: 4 })).not.toEqual(buildZoo('versions-demo', { version: 5 }));
   });
 });
 
 describe('animals always start inside their pens', () => {
   it('every starting place of every habitat is inside its pen, in every version', () => {
-    for (const version of [1, 3, 4, 5, 6]) {
+    for (const version of [1, 3, 4, 5, 6, 7]) {
       for (const seed of ['pens-a', 'pens-b', 'pens-c']) {
         const z = buildZoo(seed, { version });
         for (const h of z.habitats) {
